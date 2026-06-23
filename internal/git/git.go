@@ -314,6 +314,12 @@ func (r *Repo) PushBranch(remote, branch string) error {
 	return err
 }
 
+// UpdateRef sets a ref to a value (creates it if absent).
+func (r *Repo) UpdateRef(name, value string) error {
+	_, err := r.run("update-ref", name, value)
+	return err
+}
+
 // RemoteHasBranch reports whether the remote currently has the named branch.
 func (r *Repo) RemoteHasBranch(remote, branch string) bool {
 	out, err := r.run("ls-remote", "--heads", remote, branch)
@@ -323,11 +329,14 @@ func (r *Repo) RemoteHasBranch(remote, branch string) bool {
 	return strings.TrimSpace(out) != ""
 }
 
-// PushBranchLease publishes a branch with --force-with-lease, setting upstream.
-// Force is required because tbd rewrites feature history on every commit; the
-// lease makes it a compare-and-swap so a teammate's push is never clobbered.
-func (r *Repo) PushBranchLease(remote, branch string) error {
-	_, err := r.run("push", "-u", "--force-with-lease", remote, branch)
+// PushBranchCAS publishes a branch with --force-with-lease using an explicit
+// expected remote value (empty means "expect the branch to be absent"), setting
+// upstream. Force is required because tbd rewrites feature history on every
+// commit; the explicit lease makes it a true compare-and-swap that survives a
+// preceding fetch, so a teammate's push is never clobbered.
+func (r *Repo) PushBranchCAS(remote, branch, expected string) error {
+	lease := "--force-with-lease=refs/heads/" + branch + ":" + expected
+	_, err := r.run("push", "-u", lease, remote, branch)
 	return err
 }
 

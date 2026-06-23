@@ -123,6 +123,18 @@ func featurePush(c *cli.Context) error {
 		return err
 	}
 
+	// The compare-and-swap baseline is what THIS tool last published for the
+	// branch, recorded in a local ref that fetch never touches. A tracking ref
+	// (refs/remotes/...) is no good: tbd commit and the guard below both fetch,
+	// which would advance it to a teammate's commit and defeat the lease. On the
+	// first publish there is no marker yet, so fall back to the remote-tracking
+	// value as observed right now (pre-fetch).
+	marker := "refs/tbd/lastpush/" + branch
+	expected := e.repo.RefSha(marker)
+	if expected == "" {
+		expected = e.repo.RefSha("refs/remotes/" + e.remote + "/" + branch)
+	}
+
 	// Keep the published branch honest: fetch and ensure it sits on trunk,
 	// rebasing if it has drifted (same policy as finish).
 	g := e.guard(true)
@@ -149,8 +161,13 @@ func featurePush(c *cli.Context) error {
 		if err := e.repo.PushBranchForce(e.remote, branch); err != nil {
 			return fmt.Errorf("push %s: %w", branch, err)
 		}
-	} else if err := e.repo.PushBranchLease(e.remote, branch); err != nil {
-		return fmt.Errorf("push %s (someone else may have pushed to it; re-fetch or use :force): %w", branch, err)
+	} else if err := e.repo.PushBranchCAS(e.remote, branch, expected); err != nil {
+		return fmt.Errorf("push %s rejected: someone else pushed to it since you last saw it; "+
+			"run \"tbd feature sync\" or pass :force to override: %w", branch, err)
+	}
+	// Record what we just published as the next compare-and-swap baseline.
+	if head, err := e.repo.RevParse(branch); err == nil {
+		_ = e.repo.UpdateRef(marker, head)
 	}
 	head, _ := e.repo.Short(branch)
 	fmt.Fprintln(e.out, e.okMark("pushed "+branch+" @ "+head+" to "+e.remote))

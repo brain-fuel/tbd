@@ -8,7 +8,7 @@ import (
 
 // Version is the tbd version, overridable at build time via
 // -ldflags "-X goforge.dev/tbd/internal/commands.Version=...".
-var Version = "1.1.0"
+var Version = "1.1.1"
 
 func init() {
 	cli.Register(&cli.Command{

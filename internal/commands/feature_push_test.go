@@ -86,6 +86,50 @@ func TestFeaturePushPublishesAndUpdates(t *testing.T) {
 	}
 }
 
+// TestFeaturePushRejectsStaleClobber proves the force-with-lease survives the
+// pre-push fetch: if a collaborator moved the remote feature branch since we
+// last saw it, our push is rejected instead of clobbering their work.
+func TestFeaturePushRejectsStaleClobber(t *testing.T) {
+	dir := remoteFixture(t)
+	startFeatureBare(t, dir, "p")
+	writeFile(t, dir, "a.txt", "a")
+	if err := runCommit(mustCtx(dir, "commit", "message:work")); err != nil {
+		t.Fatal(err)
+	}
+	if err := featurePush(mustCtx(dir, "feature", "push")); err != nil {
+		t.Fatalf("initial push: %v", err)
+	}
+
+	// A collaborator clones, advances feature/p, and pushes.
+	originURL, err := gitCapture(dir, "remote", "get-url", "origin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mate := filepath.Join(t.TempDir(), "mate")
+	gitRun(t, t.TempDir(), "clone", "-q", originURL, mate)
+	gitRun(t, mate, "config", "user.email", "mate@example.com")
+	gitRun(t, mate, "config", "user.name", "mate")
+	gitRun(t, mate, "config", "commit.gpgsign", "false")
+	gitRun(t, mate, "switch", "-q", "feature/p")
+	writeAndCommit(t, mate, "mate.txt", "mate change")
+	gitRun(t, mate, "push", "-q", "origin", "feature/p")
+
+	// We (still stale) amend and try to push: must be rejected, not clobber.
+	writeFile(t, dir, "c.txt", "c")
+	if err := runCommit(mustCtx(dir, "commit")); err != nil {
+		t.Fatal(err)
+	}
+	err = featurePush(mustCtx(dir, "feature", "push"))
+	if err == nil || !strings.Contains(err.Error(), "rejected") {
+		t.Fatalf("expected stale push to be rejected, got %v", err)
+	}
+
+	// :force overrides (sometimes you really do want to win).
+	if err := featurePush(mustCtx(dir, "feature", "push", ":force")); err != nil {
+		t.Fatalf("forced push should succeed: %v", err)
+	}
+}
+
 func TestFeaturePushRefusesTrunk(t *testing.T) {
 	dir := remoteFixture(t)
 	// stay on develop
