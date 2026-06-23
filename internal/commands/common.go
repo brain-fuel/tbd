@@ -144,7 +144,7 @@ func handleRebaseConflict(e env, c *cli.Context, branch string, rerr error) erro
 		return cli.ExitError{Code: 1}
 	}
 	fmt.Fprintln(e.errOut, e.badMark("rebase of "+branch+" hit a conflict"))
-	fmt.Fprintln(e.errOut, e.colors.Dim("  resolve the conflict then run \"git rebase --continue\","))
+	fmt.Fprintln(e.errOut, e.colors.Dim("  fix the files, \"git add\" them, then run \"tbd continue\","))
 	fmt.Fprintln(e.errOut, e.colors.Dim("  or re-run with :abort-on-conflict to back out"))
 	return cli.ExitError{Code: 1}
 }

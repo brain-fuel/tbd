@@ -12,14 +12,17 @@ func init() {
 	cli.Register(&cli.Command{
 		Name:    "commit",
 		Summary: "Fold all work into the feature's single commit, then rebase onto trunk",
-		Usage: "tbd commit [message:\"...\"] [m:\"...\"] [:local] [:no-fetch]\n\n" +
+		Usage: "tbd commit [message:\"...\"] [m:\"...\"] [:local] [:no-fetch] [:abort-on-conflict]\n\n" +
 			"Every invocation does the same three things, always:\n" +
 			"  1. stage all changes and collapse the feature to exactly ONE commit\n" +
 			"     (create it, amend it, or squash several into one)\n" +
 			"  2. fetch the trunk\n" +
 			"  3. rebase that single commit onto the latest trunk head\n\n" +
 			"A message is required only for the feature's first commit; later commits\n" +
-			"keep the existing message unless you pass one.",
+			"keep the existing message unless you pass one.\n\n" +
+			"If the rebase in step 3 conflicts, the commit is already made; fix the\n" +
+			"files, \"git add\" them, and run \"tbd continue\" (or :abort-on-conflict to\n" +
+			"back the rebase out).",
 		Run: runCommit,
 	})
 }

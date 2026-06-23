@@ -122,6 +122,41 @@ fi
 grep -q "taken by someone else" "$work/rej.txt" || { echo "FAIL: expected rejection message"; cat "$work/rej.txt"; exit 1; }
 echo "lease correctly rejected the stale take"
 
+echo "== conflict + tbd continue =="
+cd "$work/c1"
+"$bin" feature start conf
+printf 'feature\n' > conflict.txt
+"$bin" commit message:"conf work"
+# A teammate adds the same file on trunk, so the next rebase must conflict.
+cd "$work/c2"
+gitc fetch -q origin
+gitc switch -q develop
+gitc reset --hard -q origin/develop
+printf 'trunk\n' > conflict.txt
+gitc add -A
+gitc commit -q -m "trunk adds conflict.txt"
+gitc push -q origin develop
+cd "$work/c1"
+set +e
+"$bin" commit
+rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL: expected commit rebase to conflict"; exit 1; }
+set +e
+"$bin" continue
+crc=$?
+set -e
+[ "$crc" -ne 0 ] || { echo "FAIL: continue should refuse with unresolved conflict"; exit 1; }
+printf 'resolved\n' > conflict.txt
+gitc add conflict.txt
+"$bin" continue
+fork="$(gitc merge-base origin/develop feature/conf)"
+n="$(gitc rev-list --count "$fork"..feature/conf)"
+[ "$n" = "1" ] || { echo "FAIL: expected 1 commit after continue, got $n"; exit 1; }
+gitc merge-base --is-ancestor origin/develop feature/conf || { echo "FAIL: not on trunk after continue"; exit 1; }
+echo "conflict resolved via tbd continue; single commit on trunk"
+"$bin" feature finish
+
 echo "== status / version / config =="
 "$bin" status
 "$bin" version

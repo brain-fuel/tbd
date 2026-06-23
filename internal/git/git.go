@@ -5,7 +5,9 @@ package git
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -144,6 +146,52 @@ func (r *Repo) Rebase(onto string) error {
 func (r *Repo) RebaseAbort() error {
 	_, err := r.run("rebase", "--abort")
 	return err
+}
+
+// RebaseInProgress reports whether a rebase is currently stopped (e.g. waiting
+// on conflict resolution).
+func (r *Repo) RebaseInProgress() bool {
+	for _, name := range []string{"rebase-merge", "rebase-apply"} {
+		p, err := r.run("rev-parse", "--git-path", name)
+		if err != nil {
+			continue
+		}
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(r.Dir, p)
+		}
+		if _, err := os.Stat(p); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// UnmergedPaths lists files that still have unresolved conflicts.
+func (r *Repo) UnmergedPaths() ([]string, error) {
+	out, err := r.run("diff", "--name-only", "--diff-filter=U")
+	if err != nil {
+		return nil, err
+	}
+	return nonEmptyLines(out), nil
+}
+
+// RebaseContinue resumes a stopped rebase without opening an editor (the
+// existing commit message is kept).
+func (r *Repo) RebaseContinue() error {
+	cmd := exec.Command("git", "rebase", "--continue")
+	cmd.Dir = r.Dir
+	cmd.Env = append(os.Environ(), "GIT_EDITOR=true")
+	var out, errb strings.Builder
+	cmd.Stdout = &out
+	cmd.Stderr = &errb
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(errb.String())
+		if msg == "" {
+			msg = err.Error()
+		}
+		return fmt.Errorf("git rebase --continue: %s", msg)
+	}
+	return nil
 }
 
 // FFMerge fast-forwards the current branch to ref, refusing a merge commit.

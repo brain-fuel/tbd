@@ -55,6 +55,7 @@ tag-push: with-lease              # "with-lease" (CAS) | "force"
 | `init` | Write `.tbd.yaml`; `:create-trunk` makes the trunk if missing | — |
 | `status` | Trunk, current branch, features, leases, releases | read-only |
 | `commit` | Collapse the feature to ONE commit, fetch trunk, rebase onto it | single commit, always rebased |
+| `continue` | Resume a tbd rebase after resolving conflicts (`:abort` to back out) | — |
 | `feature start NAME` | Branch `feature/NAME` from trunk head | start point is trunk head |
 | `feature sync [BR]` | Rebase a feature onto the latest trunk (the explicit fixer) | trunk head ⊑ feature after |
 | `feature push [BR]` | Publish the feature branch (force-with-lease, for PR/CI) | rebased onto trunk before publishing |
@@ -113,6 +114,13 @@ tbd commit                            # amends the same commit, re-rebases onto 
 The result is invariant: after any `tbd commit`, the feature is one commit
 sitting directly on top of trunk. A message is required only for the first
 commit; later ones keep it unless you pass a new `message:`/`m:`.
+
+If the rebase in step 3 conflicts, your commit is already made (work is never
+lost); the rebase stops with the file left in conflict. Fix it, `git add` the
+file, and run `tbd continue` (which resumes without opening an editor), or
+`tbd commit :abort-on-conflict` to back the rebase out and stay as you were.
+The same `tbd continue` resolves conflicts from `feature sync`, `finish`, and
+`push` too.
 
 `commit` keeps everything local. To publish the branch for a pull request or CI,
 use `tbd feature push` — it rebases onto trunk, then force-with-lease pushes
