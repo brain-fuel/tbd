@@ -70,19 +70,10 @@ func runStatus(c *cli.Context) error {
 		}
 	}
 
-	// Lease tags.
-	if len(e.cfg.LeaseTags) > 0 {
+	// Lease slots (strategy-aware; nothing to show when disabled).
+	if e.cfg.LeaseStrategy != "none" {
 		fmt.Fprintln(e.out, col.Bold("leases"))
-		trunkHead, _ := e.repo.RevParse(e.trunkRef)
-		for _, name := range e.cfg.LeaseTags {
-			d, ok := e.repo.TagInfo(name)
-			if !ok {
-				fmt.Fprintf(e.out, "  %-16s %s\n", name, col.Dim("(unset)"))
-				continue
-			}
-			loc := leaseLocation(e, name, trunkHead)
-			fmt.Fprintf(e.out, "  %-16s %s  %s  %s\n", name, d.Short, loc, col.Dim("held by "+d.Tagger))
-		}
+		writeLeaseStatus(e, e.out, "  ")
 	}
 
 	// Release branches.

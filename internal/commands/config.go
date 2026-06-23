@@ -33,14 +33,15 @@ func runConfig(c *cli.Context) error {
 		"release-tag-template":  cfg.ReleaseTagTemplate,
 		"lease-strategy":        cfg.LeaseStrategy,
 		"lease-tags":            fmt.Sprintf("%v", cfg.LeaseTags),
+		"lease-branches":        fmt.Sprintf("%v", cfg.LeaseBranches),
 		"remote":                cfg.Remote,
 		"auto-rebase":           fmt.Sprintf("%t", cfg.AutoRebaseEnabled()),
 		"tag-push":              cfg.TagPush,
 	}
 	order := []string{
 		"trunk-name", "feature-prefix", "release-strategy", "release-branch-prefix",
-		"release-tag-template", "lease-strategy", "lease-tags", "remote",
-		"auto-rebase", "tag-push",
+		"release-tag-template", "lease-strategy", "lease-tags", "lease-branches",
+		"remote", "auto-rebase", "tag-push",
 	}
 
 	switch c.Args.Pos(0) {

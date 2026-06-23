@@ -186,6 +186,10 @@ func chLease(l lesson) {
 	l.cmd("tbd lease deploy-now :force        # override the compare-and-swap check")
 	l.tip("what git really guarantees: one winner per race, not a lock held across")
 	l.p("      the whole CD run. tbd does not pretend otherwise.")
+	l.blank()
+	l.p("This is the " + l.c.Bold("tag") + " strategy. With lease-strategy: ephemeral-branch a")
+	l.p("deploy slot is instead a branch that exists only while leased: each lease")
+	l.p("blows it away and remakes it at your tip. lease-strategy: none turns it off.")
 }
 
 func chRelease(l lesson) {

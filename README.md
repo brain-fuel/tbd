@@ -42,8 +42,9 @@ feature-prefix: feature/
 release-strategy: branch          # "branch" | "tag" | [branch, tag]
 release-branch-prefix: release/
 release-tag-template: v{version}
-lease-strategy: tag
-lease-tags: [dev-deploy, uat1-deploy, uat2-deploy]
+lease-strategy: tag               # none | tag | ephemeral-branch
+lease-tags: [dev-deploy, uat1-deploy, uat2-deploy]   # used when lease-strategy: tag
+lease-branches: [deploy-now]      # used when lease-strategy: ephemeral-branch
 remote: origin
 auto-rebase: true                 # false = refuse on divergence instead of rebasing
 tag-push: with-lease              # "with-lease" (CAS) | "force"
@@ -160,6 +161,18 @@ grab the same slot in the same race window, and the **holder** is recorded in th
 annotated tag's tagger field. What a lease is **not**: a time-held lock across a
 CD run. Git cannot enforce that; tbd does not pretend otherwise. (`:force` or
 `tag-push: force` overrides the CAS check.)
+
+#### Strategy: `ephemeral-branch`
+
+Set `lease-strategy: ephemeral-branch` and list `lease-branches` instead of
+`lease-tags`. The two strategies share no logic. Here a deploy slot is a
+**branch** that exists ONLY while leased: every `tbd lease <name>` blows the
+branch away and recreates it at your working branch's tip (CAS-guarded, `:force`
+to override), so it never lingers between leases. There is no advance/no-op
+gating; each lease is a fresh remake. Any tbd activity that fetches also mirrors
+the remote lease-branches into local refs, so your view tracks reality. Run
+`tbd lease <name>` from your feature branch, not from the lease branch itself.
+`lease-strategy: none` disables leasing entirely.
 
 ## Development
 

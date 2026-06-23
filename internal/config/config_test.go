@@ -154,4 +154,22 @@ func TestValidate(t *testing.T) {
 	if err := c.Validate(); err == nil {
 		t.Fatal("expected bad tag-push error")
 	}
+
+	for _, strat := range []string{"none", "tag", "ephemeral-branch", ""} {
+		c = Default()
+		c.LeaseStrategy = strat
+		if err := c.Validate(); err != nil {
+			t.Fatalf("lease-strategy %q should be valid: %v", strat, err)
+		}
+	}
+	c = Default()
+	c.LeaseStrategy = "bogus"
+	if err := c.Validate(); err == nil {
+		t.Fatal("expected bad lease-strategy error")
+	}
+	c = Default()
+	c.LeaseBranches = []string{"deploy-now", "deploy-now"}
+	if err := c.Validate(); err == nil {
+		t.Fatal("expected duplicate lease-branches error")
+	}
 }

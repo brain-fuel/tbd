@@ -142,6 +142,32 @@ echo "teammate took the deploy lease to their branch"
 cd "$work/c1"
 "$bin" feature finish
 
+echo "== ephemeral-branch lease (separate repo, distinct from the tag strategy) =="
+origin2="$work/origin2.git"
+gitc init -q --bare -b develop "$origin2"
+gitc clone -q "$origin2" "$work/d1"
+cd "$work/d1"
+git config user.email d1@e2e.example
+git config user.name d1
+git config commit.gpgsign false
+echo seed > s.txt; gitc add -A; gitc commit -q -m seed; gitc push -q -u origin develop
+"$bin" init lease-strategy:ephemeral-branch lease-branches:deploy-now :force
+gitc add .tbd.yaml; gitc commit -q -m cfg; gitc push -q origin develop
+"$bin" feature start svc
+echo "svc a" > svc_a.txt
+"$bin" commit message:"svc work"
+"$bin" lease deploy-now
+tip="$(gitc rev-parse feature/svc)"
+[ "$(gitc ls-remote origin refs/heads/deploy-now | awk '{print $1}')" = "$tip" ] || { echo "FAIL: ephemeral not remade at tip"; exit 1; }
+if gitc ls-remote --tags origin deploy-now | grep -q deploy-now; then echo "FAIL: deploy-now must be a branch, not a tag"; exit 1; fi
+echo "svc b" > svc_b.txt
+"$bin" commit
+tip2="$(gitc rev-parse feature/svc)"
+"$bin" lease deploy-now
+[ "$(gitc ls-remote origin refs/heads/deploy-now | awk '{print $1}')" = "$tip2" ] || { echo "FAIL: ephemeral not remade after amend"; exit 1; }
+echo "ephemeral lease remade the branch at tip, again after amend, never a tag"
+"$bin" lease status
+
 echo "== conflict + tbd continue =="
 cd "$work/c1"
 "$bin" feature start conf

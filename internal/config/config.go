@@ -21,8 +21,9 @@ type Config struct {
 	ReleaseStrategy     StrategySet `yaml:"release-strategy"`
 	ReleaseBranchPrefix string      `yaml:"release-branch-prefix"`
 	ReleaseTagTemplate  string      `yaml:"release-tag-template"`
-	LeaseStrategy       string      `yaml:"lease-strategy"`
-	LeaseTags           []string    `yaml:"lease-tags"`
+	LeaseStrategy       string      `yaml:"lease-strategy"` // none | tag | ephemeral-branch
+	LeaseTags           []string    `yaml:"lease-tags"`     // used only when lease-strategy: tag
+	LeaseBranches       []string    `yaml:"lease-branches"` // used only when lease-strategy: ephemeral-branch
 	Remote              string      `yaml:"remote"`
 	AutoRebase          *bool       `yaml:"auto-rebase"`
 	TagPush             string      `yaml:"tag-push"`
@@ -166,20 +167,36 @@ func (c Config) Validate() error {
 	if err := c.ReleaseStrategy.validate(); err != nil {
 		return err
 	}
-	seen := map[string]bool{}
-	for _, t := range c.LeaseTags {
-		if t == "" {
-			return fmt.Errorf("lease-tags must not contain empty entries")
-		}
-		if seen[t] {
-			return fmt.Errorf("lease-tags has duplicate %q", t)
-		}
-		seen[t] = true
+	switch c.LeaseStrategy {
+	case "", "none", "tag", "ephemeral-branch":
+	default:
+		return fmt.Errorf("lease-strategy must be \"none\", \"tag\", or \"ephemeral-branch\", got %q", c.LeaseStrategy)
+	}
+	if err := uniqueNonEmpty("lease-tags", c.LeaseTags); err != nil {
+		return err
+	}
+	if err := uniqueNonEmpty("lease-branches", c.LeaseBranches); err != nil {
+		return err
 	}
 	switch c.TagPush {
 	case "", "with-lease", "force":
 	default:
 		return fmt.Errorf("tag-push must be \"with-lease\" or \"force\", got %q", c.TagPush)
+	}
+	return nil
+}
+
+// uniqueNonEmpty checks a name list has no empty or duplicate entries.
+func uniqueNonEmpty(field string, items []string) error {
+	seen := map[string]bool{}
+	for _, it := range items {
+		if it == "" {
+			return fmt.Errorf("%s must not contain empty entries", field)
+		}
+		if seen[it] {
+			return fmt.Errorf("%s has duplicate %q", field, it)
+		}
+		seen[it] = true
 	}
 	return nil
 }

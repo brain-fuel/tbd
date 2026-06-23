@@ -45,8 +45,14 @@ func runInit(c *cli.Context) error {
 		}
 		cfg.ReleaseStrategy = set
 	}
+	if v, ok := c.Args.Get("lease-strategy"); ok {
+		cfg.LeaseStrategy = v
+	}
 	if v, ok := c.Args.Get("lease-tags"); ok {
 		cfg.LeaseTags = splitCSV(v)
+	}
+	if v, ok := c.Args.Get("lease-branches"); ok {
+		cfg.LeaseBranches = splitCSV(v)
 	}
 	if err := cfg.Validate(); err != nil {
 		return err

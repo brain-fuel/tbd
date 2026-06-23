@@ -453,6 +453,29 @@ func (r *Repo) PushBranchForce(remote, branch string) error {
 	return err
 }
 
+// RemoteBranchSha returns the sha the remote currently has for a branch, or ""
+// if the remote does not have it.
+func (r *Repo) RemoteBranchSha(remote, branch string) string {
+	out, err := r.run("ls-remote", "--heads", remote, "refs/heads/"+branch)
+	if err != nil {
+		return ""
+	}
+	fields := strings.Fields(strings.TrimSpace(out))
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
+}
+
+// CommitterName returns the committer name of ref's tip ("" on error).
+func (r *Repo) CommitterName(ref string) string {
+	out, err := r.run("log", "-1", "--format=%cn", ref)
+	if err != nil {
+		return ""
+	}
+	return out
+}
+
 // PushDeleteBranch deletes a branch on the remote.
 func (r *Repo) PushDeleteBranch(remote, branch string) error {
 	_, err := r.run("push", remote, "--delete", branch)

@@ -59,7 +59,41 @@ func load(c *cli.Context) (env, error) {
 	}
 	// Fetch by default for network-aware commands unless asked not to.
 	e.fetch = useRemote && !c.Args.Flag("no-fetch")
+
+	// Ephemeral-branch leasing: any activity refreshes local lease-branch refs
+	// from the remote. Fetch once up front and mirror them, so a single fetch
+	// covers both trunk and the deploy branches; downstream steps skip re-fetch.
+	if cfg.LeaseStrategy == "ephemeral-branch" && e.fetch {
+		if err := repo.Fetch(e.remote); err == nil {
+			e.syncLeaseBranches()
+			e.fetch = false
+		}
+	}
 	return e, nil
+}
+
+// syncLeaseBranches mirrors the remote's lease-branches into local refs (and
+// deletes a local one the remote no longer has). Only meaningful for the
+// ephemeral-branch strategy. Assumes a fetch has just refreshed remote-tracking
+// refs. Never touches the currently checked-out branch.
+func (e env) syncLeaseBranches() {
+	if e.cfg.LeaseStrategy != "ephemeral-branch" || e.remote == "" {
+		return
+	}
+	cur, _ := e.repo.CurrentBranch()
+	for _, name := range e.cfg.LeaseBranches {
+		if name == cur {
+			continue
+		}
+		track := e.repo.RefSha("refs/remotes/" + e.remote + "/" + name)
+		if track == "" {
+			if e.repo.Exists("refs/heads/" + name) {
+				_ = e.repo.BranchDelete(name)
+			}
+			continue
+		}
+		_ = e.repo.UpdateRef("refs/heads/"+name, track)
+	}
 }
 
 // guard builds the invariant guard from the env.
