@@ -72,6 +72,15 @@ func (r *Repo) RefSha(ref string) string {
 	return out
 }
 
+// CommitOf returns the commit ref points at, or "" if it does not resolve.
+func (r *Repo) CommitOf(ref string) string {
+	sha, err := r.RevParse(ref)
+	if err != nil {
+		return ""
+	}
+	return sha
+}
+
 // Exists reports whether ref resolves to anything.
 func (r *Repo) Exists(ref string) bool {
 	return r.runOK("rev-parse", "--verify", "--quiet", ref)
@@ -257,6 +266,32 @@ func (r *Repo) ListTags(pattern string) ([]string, error) {
 		return nil, err
 	}
 	return nonEmptyLines(out), nil
+}
+
+// ReflogContains reports whether branch's reflog ever pointed at sha. This is
+// how we recognize a commit that used to be on the working branch before an
+// amend or rebase rewrote it (a now-orphaned "ours"). Best effort: the reflog is
+// local and expires.
+func (r *Repo) ReflogContains(branch, sha string) bool {
+	out, err := r.run("log", "-g", "--format=%H", branch)
+	if err != nil {
+		return false
+	}
+	for _, line := range nonEmptyLines(out) {
+		if line == sha {
+			return true
+		}
+	}
+	return false
+}
+
+// BranchesContaining returns the local branches whose history includes sha.
+func (r *Repo) BranchesContaining(sha string) []string {
+	out, err := r.run("branch", "--contains", sha, "--format=%(refname:short)")
+	if err != nil {
+		return nil
+	}
+	return nonEmptyLines(out)
 }
 
 // AheadBehind returns how many commits a is ahead of and behind b.

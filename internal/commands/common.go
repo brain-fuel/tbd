@@ -126,7 +126,7 @@ func (e env) visualizeRebase(feature string) error {
 	if err := e.repo.Rebase(e.trunkRef); err != nil {
 		return fmt.Errorf("%w: %v", ErrRebaseConflict, err)
 	}
-	fmt.Fprintln(e.out, e.colors.Green("✓ rebased — "+feature+" now sits on top of "+e.trunkLocal))
+	fmt.Fprintln(e.out, e.colors.Green("✓ rebased - "+feature+" now sits on top of "+e.trunkLocal))
 	return nil
 }
 

@@ -45,7 +45,7 @@ func runStatus(c *cli.Context) error {
 			head := short(rep.TargetHead)
 			marker := e.okMark("on top of trunk")
 			if rep.Diverged {
-				marker = e.badMark("diverged — run \"tbd feature sync\"")
+				marker = e.badMark("diverged - run \"tbd feature sync\"")
 			}
 			fmt.Fprintf(e.out, "  %s @ %s  +%d/-%d  %s\n", cur, head, rep.Ahead, rep.Behind, marker)
 			if rep.Dirty {
@@ -73,18 +73,15 @@ func runStatus(c *cli.Context) error {
 	// Lease tags.
 	if len(e.cfg.LeaseTags) > 0 {
 		fmt.Fprintln(e.out, col.Bold("leases"))
+		trunkHead, _ := e.repo.RevParse(e.trunkRef)
 		for _, name := range e.cfg.LeaseTags {
 			d, ok := e.repo.TagInfo(name)
 			if !ok {
 				fmt.Fprintf(e.out, "  %-16s %s\n", name, col.Dim("(unset)"))
 				continue
 			}
-			onTrunk, _ := e.guard(false).OnTrunk(name)
-			marker := e.okMark("on trunk")
-			if !onTrunk {
-				marker = col.Yellow("⚠ off trunk")
-			}
-			fmt.Fprintf(e.out, "  %-16s %s  %s  %s\n", name, d.Short, marker, col.Dim("held by "+d.Tagger))
+			loc := leaseLocation(e, name, trunkHead)
+			fmt.Fprintf(e.out, "  %-16s %s  %s  %s\n", name, d.Short, loc, col.Dim("held by "+d.Tagger))
 		}
 	}
 

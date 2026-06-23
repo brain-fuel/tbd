@@ -153,10 +153,10 @@ func TestFeatureFinishAutoRebaseVisualized(t *testing.T) {
 func TestLeaseTakeLocal(t *testing.T) {
 	dir := repoFixture(t)
 	ctx, out, _ := newCtx(dir, "lease", "take", "dev-deploy")
-	if err := leaseTake(ctx); err != nil {
+	if err := runLease(ctx); err != nil {
 		t.Fatalf("lease take: %v", err)
 	}
-	if !strings.Contains(out.String(), "took lease dev-deploy") {
+	if !strings.Contains(out.String(), "dev-deploy ->") {
 		t.Fatalf("unexpected output: %s", out.String())
 	}
 	r, _ := openRepo(dir)

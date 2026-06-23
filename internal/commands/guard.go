@@ -14,7 +14,7 @@ func init() {
 		Summary: "Check the trunk-ancestor invariant for a ref (exit 0/1)",
 		Usage: "tbd guard [ref:REF] [:fetch] [:local]\n\n" +
 			"Reports whether trunk head is an ancestor of REF (default: current branch).\n" +
-			"Exits 0 when the invariant holds, 1 otherwise — handy in CI.",
+			"Exits 0 when the invariant holds, 1 otherwise - handy in CI.",
 		Run: runGuard,
 	}
 	cli.Register(cmd)

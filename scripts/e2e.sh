@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # End-to-end smoke test for tbd: stand up a bare "origin" plus two clones and
 # exercise the feature, release, and lease flows including the auto-rebase
-# visualization and a real compare-and-swap lease rejection.
+# visualization, conflict resolution via tbd continue, and the DAG-gated lease
+# (bootstrap, advance-through-amend, and taking a teammate's slot).
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -103,24 +104,38 @@ gitc rev-parse origin/release/1.0.0 >/dev/null
 gitc ls-remote --tags origin v1.0.0 | grep -q v1.0.0 || { echo "FAIL: release tag missing on origin"; exit 1; }
 "$bin" release list
 
-echo "== lease take from c1 =="
-"$bin" lease take dev-deploy
+echo "== lease: bootstrap -> advance -> advance-through-amend =="
+cd "$work/c1"
+"$bin" feature start deployer
+echo "deploy a" > deploy_a.txt
+"$bin" commit message:"deploy work"
+"$bin" lease dev-deploy                       # unset -> bootstrap to trunk head
+boot="$(gitc rev-parse dev-deploy^{commit})"
+[ "$boot" = "$(gitc rev-parse origin/develop)" ] || { echo "FAIL: bootstrap not on trunk head"; exit 1; }
+"$bin" lease dev-deploy                       # on trunk (ancestor of W) -> advance to feature tip
+[ "$(gitc rev-parse dev-deploy^{commit})" = "$(gitc rev-parse feature/deployer)" ] || { echo "FAIL: lease did not advance to feature tip"; exit 1; }
+echo "deploy b" > deploy_b.txt
+"$bin" commit                                 # amend -> rewrites tip, orphans old
+"$bin" lease dev-deploy                       # recognizes old via reflog -> advance to amended tip
+[ "$(gitc rev-parse dev-deploy^{commit})" = "$(gitc rev-parse feature/deployer)" ] || { echo "FAIL: lease did not advance through amend"; exit 1; }
+echo "lease advanced through commit and amend"
 "$bin" lease status
 
-echo "== lease CAS: c2 takes it, then stale c1 take is rejected =="
+echo "== lease: take from someone else's branch =="
+# c2 (a teammate) deploys its own feature, taking the slot.
 cd "$work/c2"
-gitc pull -q --ff-only origin develop
+gitc fetch -q origin
+gitc switch -q develop
+gitc reset --hard -q origin/develop
 cp "$work/c1/.tbd.yaml" .tbd.yaml 2>/dev/null || true
-"$bin" lease status            # fetches tags so c2 has seen dev-deploy
-"$bin" lease take dev-deploy   # c2 now holds it (remote moves)
-
+"$bin" feature start mate
+echo "mate work" > mate.txt
+"$bin" commit message:"mate work"
+"$bin" lease dev-deploy                       # foreign (on c1's branch) -> take to c2's tip
+[ "$(gitc rev-parse dev-deploy^{commit})" = "$(gitc rev-parse feature/mate)" ] || { echo "FAIL: foreign take did not move to teammate tip"; exit 1; }
+echo "teammate took the deploy lease to their branch"
 cd "$work/c1"
-# c1 is stale: it still thinks dev-deploy is where it left it. CAS must reject.
-if "$bin" lease take dev-deploy 2>"$work/rej.txt"; then
-  echo "FAIL: stale lease take should have been rejected"; cat "$work/rej.txt"; exit 1
-fi
-grep -q "taken by someone else" "$work/rej.txt" || { echo "FAIL: expected rejection message"; cat "$work/rej.txt"; exit 1; }
-echo "lease correctly rejected the stale take"
+"$bin" feature finish
 
 echo "== conflict + tbd continue =="
 cd "$work/c1"

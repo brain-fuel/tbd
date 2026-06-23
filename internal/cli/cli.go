@@ -114,13 +114,13 @@ func isTerminal(w io.Writer) bool {
 func runHelp(ctx *Context) int {
 	if topic := ctx.Args.Pos(0); topic != "" {
 		if cmd, ok := registry[topic]; ok {
-			fmt.Fprintf(ctx.Stdout, "%s — %s\n\n%s\n", cmd.Name, cmd.Summary, cmd.Usage)
+			fmt.Fprintf(ctx.Stdout, "%s - %s\n\n%s\n", cmd.Name, cmd.Summary, cmd.Usage)
 			return 0
 		}
 		fmt.Fprintf(ctx.Stderr, "tbd: no help for unknown command %q\n", topic)
 		return 2
 	}
-	fmt.Fprintln(ctx.Stdout, "tbd — trunk-based development over git's DAG")
+	fmt.Fprintln(ctx.Stdout, "tbd - trunk-based development over git's DAG")
 	fmt.Fprintln(ctx.Stdout, "\nUsage:\n  tbd <command> [positional...] key:value :flag\n\nCommands:")
 	for _, c := range Commands() {
 		fmt.Fprintf(ctx.Stdout, "  %-10s %s\n", c.Name, c.Summary)
