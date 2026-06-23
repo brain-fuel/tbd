@@ -72,6 +72,19 @@ echo "$out"
 echo "$out" | grep -q "Rebasing" || { echo "FAIL: expected rebase visualization"; exit 1; }
 echo "$out" | grep -q "before" || { echo "FAIL: expected before/after DAG"; exit 1; }
 
+echo "== tbd commit: one commit per feature, amend + rebase every time =="
+"$bin" feature start patch
+echo "patch a" > patch_a.txt
+"$bin" commit message:"patch work"
+echo "patch b" > patch_b.txt
+"$bin" commit                       # amends, still a single commit
+fork="$(gitc merge-base origin/develop feature/patch)"
+n="$(gitc rev-list --count "$fork"..feature/patch)"
+[ "$n" = "1" ] || { echo "FAIL: expected 1 commit on feature/patch, got $n"; exit 1; }
+gitc merge-base --is-ancestor origin/develop feature/patch || { echo "FAIL: feature/patch not on trunk head"; exit 1; }
+echo "feature/patch is exactly one commit on top of trunk"
+"$bin" feature finish
+
 echo "== release cut (branch + tag), verify on trunk =="
 "$bin" release cut 1.0.0 strategy:branch,tag
 gitc rev-parse origin/release/1.0.0 >/dev/null

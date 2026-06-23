@@ -54,6 +54,7 @@ tag-push: with-lease              # "with-lease" (CAS) | "force"
 |---|---|---|
 | `init` | Write `.tbd.yaml`; `:create-trunk` makes the trunk if missing | — |
 | `status` | Trunk, current branch, features, leases, releases | read-only |
+| `commit` | Collapse the feature to ONE commit, fetch trunk, rebase onto it | single commit, always rebased |
 | `feature start NAME` | Branch `feature/NAME` from trunk head | start point is trunk head |
 | `feature sync [BR]` | Rebase a feature onto the latest trunk (the explicit fixer) | trunk head ⊑ feature after |
 | `feature finish [BR]` | Rebase (auto), fast-forward trunk, push, delete branch | trunk head ⊑ feature; trunk only fast-forwards |
@@ -89,6 +90,28 @@ after
 ```
 
 Set `auto-rebase: false` to refuse instead, with a hint to run `tbd feature sync`.
+
+### Single-commit features: `tbd commit`
+
+`tbd commit` enforces a one-commit-per-feature discipline. Every invocation, no
+exceptions, does the same three things:
+
+1. Stages all changes and collapses the feature to exactly **one** commit
+   (creates it, amends it, or squashes several into one).
+2. Fetches the trunk.
+3. Rebases that single commit onto the latest trunk head.
+
+```sh
+tbd feature start login
+# ...edit...
+tbd commit message:"add login form"   # first commit (message required)
+# ...edit more...
+tbd commit                            # amends the same commit, re-rebases onto trunk
+```
+
+The result is invariant: after any `tbd commit`, the feature is one commit
+sitting directly on top of trunk. A message is required only for the first
+commit; later ones keep it unless you pass a new `message:`/`m:`.
 
 ### Leases (deploy locks) — what git actually guarantees
 

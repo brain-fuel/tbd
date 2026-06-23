@@ -237,6 +237,53 @@ type Commit struct {
 	Subject string
 }
 
+// StageAll stages every change in the working tree (tracked and untracked).
+func (r *Repo) StageAll() error {
+	_, err := r.run("add", "-A")
+	return err
+}
+
+// HasStaged reports whether the index has staged changes.
+func (r *Repo) HasStaged() bool {
+	return !r.runOK("diff", "--cached", "--quiet")
+}
+
+// Commit creates a commit from the staged changes with the given message.
+func (r *Repo) Commit(msg string) error {
+	_, err := r.run("commit", "-m", msg)
+	return err
+}
+
+// CommitAmend folds staged changes into the current commit. An empty msg keeps
+// the existing message; otherwise it replaces it. --allow-empty so a pure
+// re-sync (no staged changes) still succeeds.
+func (r *Repo) CommitAmend(msg string) error {
+	args := []string{"commit", "--amend", "--allow-empty"}
+	if msg == "" {
+		args = append(args, "--no-edit")
+	} else {
+		args = append(args, "-m", msg)
+	}
+	_, err := r.run(args...)
+	return err
+}
+
+// ResetSoft moves HEAD to ref while keeping the index and working tree, so the
+// combined content can be re-committed as one.
+func (r *Repo) ResetSoft(ref string) error {
+	_, err := r.run("reset", "--soft", ref)
+	return err
+}
+
+// FullMessage returns ref's complete commit message ("" on error).
+func (r *Repo) FullMessage(ref string) string {
+	out, err := r.run("log", "-1", "--format=%B", ref)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimRight(out, "\n")
+}
+
 // Subject returns the first line of ref's commit message ("" on error).
 func (r *Repo) Subject(ref string) string {
 	out, err := r.run("log", "-1", "--format=%s", ref)
