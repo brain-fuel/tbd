@@ -30,8 +30,8 @@ func TestValidateUnknownNamedWithHint(t *testing.T) {
 	for _, want := range []string{
 		`unknown option "strategy:random"`,
 		"set lease-strategy in .tbd.yaml", // the hint
-		"accepted named:",
-		"accepted flags:",
+		"named (pass as name:value): color-mode, to",
+		"flags (pass as :name): force, local, no-advance, no-fetch",
 		"tbd help lease",
 	} {
 		if !strings.Contains(msg, want) {

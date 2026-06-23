@@ -108,21 +108,11 @@ func (s Spec) unknown(prog, command, shown, bare string, named bool) error {
 		fmt.Fprintf(&b, "\n  %s", hint)
 	}
 
-	named0 := names(s.Named)
-	if len(named0) > 0 {
-		decorated := make([]string, len(named0))
-		for i, n := range named0 {
-			decorated[i] = n + ":"
-		}
-		fmt.Fprintf(&b, "\n  accepted named: %s", strings.Join(decorated, " "))
+	if named0 := names(s.Named); len(named0) > 0 {
+		fmt.Fprintf(&b, "\n  named (pass as name:value): %s", strings.Join(named0, ", "))
 	}
-	flags0 := names(s.Flags)
-	if len(flags0) > 0 {
-		decorated := make([]string, len(flags0))
-		for i, n := range flags0 {
-			decorated[i] = ":" + n
-		}
-		fmt.Fprintf(&b, "\n  accepted flags: %s", strings.Join(decorated, " "))
+	if flags0 := names(s.Flags); len(flags0) > 0 {
+		fmt.Fprintf(&b, "\n  flags (pass as :name): %s", strings.Join(flags0, ", "))
 	}
 	if command != "" {
 		fmt.Fprintf(&b, "\n  run %q for usage", prog+" help "+command)
