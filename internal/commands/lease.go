@@ -5,6 +5,7 @@ import (
 	"io"
 	"time"
 
+	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/cli"
 )
 
@@ -21,6 +22,14 @@ func init() {
 			"  ephemeral-branch blows away a lease-branch and remakes it at your tip,\n" +
 			"                   every time, so the branch never lives unless leased\n\n" +
 			"Every move is compare-and-swap so two people cannot grab the same slot at once.",
+		Spec: argv.Spec{
+			Named: argv.Opts("to"),
+			Flags: argv.Opts("no-advance", "force"),
+			Hints: map[string]string{
+				"strategy":       "the lease mechanism is set in .tbd.yaml (lease-strategy: none|tag|ephemeral-branch), not on the command line",
+				"lease-strategy": "set lease-strategy in .tbd.yaml, not on the command line",
+			},
+		},
 		Run: runLease,
 	})
 }

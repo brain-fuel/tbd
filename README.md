@@ -195,6 +195,17 @@ Tests come in three flavors:
 
 Git-dependent tests skip automatically when `git` is not on `PATH`.
 
+### Argument parsing and validation
+
+The colon-syntax parser lives in `internal/argv` and is independent of tbd.
+Each command declares the options it accepts as an `argv.Spec` right where it is
+registered (`Named`, `Flags`, and optional `Hints`). The dispatcher validates
+every invocation against that spec merged with the global options, so an unknown
+option (`tbd lease dev-deploy strategy:random`) gets a helpful error with a
+suggestion and the accepted options, rather than being silently ignored. Adding
+or removing an option is a one-line edit to that command's `Spec`; nothing has to
+scan the code to keep validation correct.
+
 Layout: `cmd/tbd` (entrypoint) · `internal/cli` (dispatch) · `internal/config`
 · `internal/git` (the only place that shells out to git) · `internal/invariant`
 (the guard) · `internal/render` (color + the rebase graph) · `internal/commands`.

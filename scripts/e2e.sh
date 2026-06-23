@@ -126,6 +126,14 @@ echo "deploy b" > deploy_b.txt
 echo "lease advanced through commit and amend"
 "$bin" lease status
 
+echo "== argument validation: unknown option is a helpful error =="
+if "$bin" lease dev-deploy strategy:random 2>"$work/argerr.txt"; then
+  echo "FAIL: strategy:random should be rejected"; exit 1
+fi
+grep -q "unknown option" "$work/argerr.txt" || { echo "FAIL: missing unknown-option message"; cat "$work/argerr.txt"; exit 1; }
+grep -q "lease-strategy" "$work/argerr.txt" || { echo "FAIL: missing config hint"; cat "$work/argerr.txt"; exit 1; }
+echo "unknown option rejected with guidance"
+
 echo "== lease: take from someone else's branch =="
 # c2 (a teammate) deploys its own feature, taking the slot.
 cd "$work/c2"

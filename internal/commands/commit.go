@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/cli"
 	"goforge.dev/tbd/internal/invariant"
 )
@@ -25,6 +26,10 @@ func init() {
 			"If the rebase in step 3 conflicts, the commit is already made; fix the\n" +
 			"files, \"git add\" them, and run \"tbd continue\" (or :abort-on-conflict to\n" +
 			"back the rebase out).",
+		Spec: argv.Spec{
+			Named: argv.Opts("message", "m"),
+			Flags: argv.Opts("edit", "abort-on-conflict"),
+		},
 		Run: runCommit,
 	})
 }

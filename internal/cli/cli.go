@@ -9,8 +9,19 @@ import (
 	"os"
 	"sort"
 
+	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/render"
 )
+
+// globalSpec lists options every command accepts, folded into each command's own
+// spec before validation.
+var globalSpec = argv.Spec{
+	Named: []argv.Opt{{Name: "color-mode", Help: "none|always to force color off/on"}},
+	Flags: []argv.Opt{
+		{Name: "local", Help: "skip the network (no fetch/push)"},
+		{Name: "no-fetch", Help: "do not fetch before acting"},
+	},
+}
 
 // ExitError lets a command set the process exit code without the dispatcher
 // printing an error message (the command has already reported its own output).
@@ -34,11 +45,14 @@ func (c *Context) Colors() render.Colors {
 	return render.NewColors(c.Args.GetOr("color-mode", ""), c.IsTTY)
 }
 
-// Command is a registered tbd subcommand.
+// Command is a registered tbd subcommand. Spec declares the options it accepts;
+// the dispatcher validates every invocation against it (merged with the global
+// options), so unknown options get a helpful error instead of being ignored.
 type Command struct {
 	Name    string
 	Summary string
 	Usage   string
+	Spec    argv.Spec
 	Run     func(*Context) error
 }
 
@@ -83,6 +97,10 @@ func Run(argv []string) int {
 	cmd, ok := registry[args.Command]
 	if !ok {
 		fmt.Fprintf(ctx.Stderr, "tbd: unknown command %q (try \"tbd help\")\n", args.Command)
+		return 2
+	}
+	if err := globalSpec.Merge(cmd.Spec).Validate(args, "tbd"); err != nil {
+		fmt.Fprintf(ctx.Stderr, "tbd %s: %v\n", cmd.Name, err)
 		return 2
 	}
 	if err := cmd.Run(ctx); err != nil {

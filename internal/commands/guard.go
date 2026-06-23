@@ -4,22 +4,25 @@ import (
 	"errors"
 	"fmt"
 
+	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/cli"
 	"goforge.dev/tbd/internal/invariant"
 )
 
 func init() {
+	spec := argv.Spec{Named: argv.Opts("ref"), Flags: argv.Opts("fetch")}
 	cmd := &cli.Command{
 		Name:    "guard",
 		Summary: "Check the trunk-ancestor invariant for a ref (exit 0/1)",
 		Usage: "tbd guard [ref:REF] [:fetch] [:local]\n\n" +
 			"Reports whether trunk head is an ancestor of REF (default: current branch).\n" +
 			"Exits 0 when the invariant holds, 1 otherwise - handy in CI.",
-		Run: runGuard,
+		Spec: spec,
+		Run:  runGuard,
 	}
 	cli.Register(cmd)
 	// "check" is an alias for "guard".
-	cli.Register(&cli.Command{Name: "check", Summary: "Alias for guard", Usage: cmd.Usage, Run: runGuard})
+	cli.Register(&cli.Command{Name: "check", Summary: "Alias for guard", Usage: cmd.Usage, Spec: spec, Run: runGuard})
 }
 
 func runGuard(c *cli.Context) error {

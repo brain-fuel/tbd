@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/cli"
 	"goforge.dev/tbd/internal/config"
 	"goforge.dev/tbd/internal/git"
@@ -20,6 +21,11 @@ func init() {
 			"         [:create-trunk] [:force]\n\n" +
 			"Writes .tbd.yaml with defaults merged over any flags given.\n" +
 			":create-trunk creates the trunk branch from HEAD if it is missing.",
+		Spec: argv.Spec{
+			Named: argv.Opts("trunk", "feature-prefix", "release-prefix", "release-strategy",
+				"lease-strategy", "lease-tags", "lease-branches"),
+			Flags: argv.Opts("create-trunk", "force"),
+		},
 		Run: runInit,
 	})
 }

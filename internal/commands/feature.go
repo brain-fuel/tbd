@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/cli"
 	"goforge.dev/tbd/internal/invariant"
 )
@@ -19,7 +20,8 @@ func init() {
 			"tbd feature list             list feature branches and their status\n\n" +
 			"Flags: :local (skip network) :no-fetch :no-push :keep :no-sync\n" +
 			"       :abort-on-conflict :force",
-		Run: runFeature,
+		Spec: argv.Spec{Flags: argv.Opts("no-push", "keep", "no-sync", "abort-on-conflict", "force")},
+		Run:  runFeature,
 	})
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/cli"
 	"goforge.dev/tbd/internal/config"
 )
@@ -15,6 +16,10 @@ func init() {
 		Usage: "tbd release cut VERSION [from:REF] [strategy:branch|tag|branch,tag] [:no-push]\n" +
 			"tbd release list\n\n" +
 			"A release may only be cut from a commit that is on trunk.",
+		Spec: argv.Spec{
+			Named: argv.Opts("from", "strategy"),
+			Flags: argv.Opts("no-push"),
+		},
 		Run: runRelease,
 	})
 }

@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 
+	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/cli"
 )
 
@@ -15,7 +16,8 @@ func init() {
 			"When tbd commit, feature sync, finish, or push hits a conflict it leaves\n" +
 			"the rebase in progress. Fix the files, \"git add\" them, then run this. It\n" +
 			"resumes without opening an editor, keeping the existing commit message.",
-		Run: runContinue,
+		Spec: argv.Spec{Flags: argv.Opts("abort")},
+		Run:  runContinue,
 	})
 }
 

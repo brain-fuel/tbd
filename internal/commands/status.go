@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 
+	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/cli"
 )
 
@@ -11,6 +12,7 @@ func init() {
 		Name:    "status",
 		Summary: "Show trunk, current branch, leases, and releases at a glance",
 		Usage:   "tbd status [:fetch] [:local] [color-mode:none|always]",
+		Spec:    argv.Spec{Flags: argv.Opts("fetch")},
 		Run:     runStatus,
 	})
 }
