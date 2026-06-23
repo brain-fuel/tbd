@@ -1,0 +1,132 @@
+# tbd — trunk-based development over git
+
+`tbd` is a small, opinionated wrapper over git's DAG. It exists to enforce one
+invariant on every mutating operation:
+
+> **The head of the trunk must be an ancestor of whatever you operate on or produce.**
+
+That single rule (`git merge-base --is-ancestor`) is what keeps trunk-based
+development safe: you never integrate, release, or deploy work that has silently
+diverged from trunk. When your branch *has* diverged, `tbd` rebases it onto the
+latest trunk for you and **shows you the move** as a before/after graph — nothing
+happens silently.
+
+## Install
+
+```sh
+go build -o tbd ./cmd/tbd
+```
+
+## Quick start
+
+```sh
+tbd init                       # write .tbd.yaml (defaults below)
+tbd feature start login        # branch feature/login off the latest trunk
+# ...commit work...
+tbd feature finish             # rebase onto trunk, fast-forward trunk, push, clean up
+tbd release cut 1.0.0          # cut a release from a trunk commit
+tbd lease take dev-deploy      # borrow the deploy tag to trigger CD (one taker wins)
+tbd status                     # dashboard of trunk, branches, leases, releases
+tbd guard                      # exit 0/1: does the invariant hold? (for CI)
+```
+
+Arguments use colon syntax: `key:value` for named args, `:flag` for booleans
+(e.g. `tbd feature finish :no-push`, `tbd release cut 1.0.0 strategy:branch,tag`).
+
+## Configuration — `.tbd.yaml`
+
+```yaml
+trunk-name: develop
+feature-prefix: feature/
+release-strategy: branch          # "branch" | "tag" | [branch, tag]
+release-branch-prefix: release/
+release-tag-template: v{version}
+lease-strategy: tag
+lease-tags: [dev-deploy, uat1-deploy, uat2-deploy]
+remote: origin
+auto-rebase: true                 # false = refuse on divergence instead of rebasing
+tag-push: with-lease              # "with-lease" (CAS) | "force"
+```
+
+## Commands
+
+| Command | What it does | Invariant enforced |
+|---|---|---|
+| `init` | Write `.tbd.yaml`; `:create-trunk` makes the trunk if missing | — |
+| `status` | Trunk, current branch, features, leases, releases | read-only |
+| `feature start NAME` | Branch `feature/NAME` from trunk head | start point is trunk head |
+| `feature sync [BR]` | Rebase a feature onto the latest trunk (the explicit fixer) | trunk head ⊑ feature after |
+| `feature finish [BR]` | Rebase (auto), fast-forward trunk, push, delete branch | trunk head ⊑ feature; trunk only fast-forwards |
+| `feature list` | Feature branches with ahead/behind + status | read-only |
+| `release cut VERSION` | Branch and/or tag per `release-strategy` | `from` must be on trunk |
+| `release list` | Release points + on-trunk marker | read-only |
+| `lease take NAME` | Move deploy tag `NAME` to a trunk commit (CAS) | target on trunk; single winner |
+| `lease status` | Each deploy tag: position + holder | read-only |
+| `guard` / `check` | Report the invariant; exit 0 if it holds, 1 otherwise | read-only |
+| `config list` / `config get KEY` | Show resolved configuration | read-only |
+| `version` | Print the tbd version | — |
+
+### Divergence and auto-rebase
+
+When trunk has moved ahead of your feature, `feature finish` (and `feature sync`)
+rebase it onto the latest trunk and print the move:
+
+```
+Rebasing feature/widget onto develop:
+
+before
+  ● 2324c61  trunk advances  (trunk head: develop)
+  │
+  │ ○ b07c5ca  widget work  ← feature/widget
+  ├─╯
+  ◇ 01ebddf  login work  (fork point)
+
+after
+  ● b07c5ca  widget work  ← feature/widget (replayed)
+  ● 2324c61  trunk advances  (trunk head: develop)
+  │
+  ◇ 01ebddf  login work
+```
+
+Set `auto-rebase: false` to refuse instead, with a hint to run `tbd feature sync`.
+
+### Leases (deploy locks) — what git actually guarantees
+
+A *lease* is the deploy tag your CD pipeline watches. `tbd lease take` moves that
+tag to a trunk commit so CD fires. Git has **no native lock**; the only
+mutual-exclusion primitive it offers is a compare-and-swap on a ref
+(`git push --force-with-lease`). So a lease guarantees exactly this:
+
+- **Single winner per move.** The push uses the tag value you last saw as the
+  CAS baseline. If someone moved the tag since, your push is rejected and you are
+  shown who holds it now — two people cannot kick off the same deployment from
+  stale state. (`:force` or `tag-push: force` overrides the check.)
+- The **holder** is recorded in the annotated tag's own tagger field.
+
+What a lease is **not**: a time-held lock across the duration of a CD run. Git
+cannot enforce that; it would need an external lock service. `tbd` does not
+pretend otherwise.
+
+## Development
+
+```sh
+go test ./...        # unit, data-driven, and property tests
+bash scripts/e2e.sh  # full flow against a throwaway origin + two clones
+```
+
+Tests come in three flavors:
+
+- **Data-driven / table tests** — e.g. `feature finish` preconditions
+  (`TestFeatureFinishGuards`) and config parsing.
+- **Property tests** (`pgregory.net/rapid`) over randomly generated git
+  histories: the ahead/behind/diverged model matches the constructed shape, a
+  rebase always restores the invariant, and any valid config survives a
+  Save→Load round-trip.
+- **End-to-end** — `scripts/e2e.sh` exercises the real flows, including the
+  auto-rebase visualization and a genuine compare-and-swap lease rejection.
+
+Git-dependent tests skip automatically when `git` is not on `PATH`.
+
+Layout: `cmd/tbd` (entrypoint) · `internal/cli` (dispatch) · `internal/config`
+· `internal/git` (the only place that shells out to git) · `internal/invariant`
+(the guard) · `internal/render` (color + the rebase graph) · `internal/commands`.
