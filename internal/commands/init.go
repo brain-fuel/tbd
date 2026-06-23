@@ -2,7 +2,9 @@ package commands
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"goforge.dev/tbd/internal/cli"
 	"goforge.dev/tbd/internal/config"
@@ -48,11 +50,22 @@ func runInit(c *cli.Context) error {
 	if v, ok := c.Args.Get("lease-strategy"); ok {
 		cfg.LeaseStrategy = v
 	}
+	tagsSet, branchesSet := false, false
 	if v, ok := c.Args.Get("lease-tags"); ok {
 		cfg.LeaseTags = splitCSV(v)
+		tagsSet = true
 	}
 	if v, ok := c.Args.Get("lease-branches"); ok {
 		cfg.LeaseBranches = splitCSV(v)
+		branchesSet = true
+	}
+	// Don't materialize the list the chosen strategy ignores, so the written
+	// file reflects what is actually in use.
+	if cfg.LeaseStrategy != "tag" && !tagsSet {
+		cfg.LeaseTags = nil
+	}
+	if cfg.LeaseStrategy != "ephemeral-branch" && !branchesSet {
+		cfg.LeaseBranches = nil
 	}
 	if err := cfg.Validate(); err != nil {
 		return err
@@ -80,9 +93,13 @@ func runInit(c *cli.Context) error {
 	}
 	colors := c.Colors()
 	fmt.Fprintf(c.Stdout, "%s wrote %s\n", colors.Green("✓"), config.FileName)
-	fmt.Fprintf(c.Stdout, "  trunk-name:       %s\n", cfg.TrunkName)
-	fmt.Fprintf(c.Stdout, "  feature-prefix:   %s\n", cfg.FeaturePrefix)
-	fmt.Fprintf(c.Stdout, "  release-strategy: %v\n", []string(cfg.ReleaseStrategy))
-	fmt.Fprintf(c.Stdout, "  lease-tags:       %v\n", cfg.LeaseTags)
+	// Print exactly what was written, so the summary never disagrees with the file.
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	for _, line := range strings.Split(strings.TrimRight(string(data), "\n"), "\n") {
+		fmt.Fprintf(c.Stdout, "  %s\n", colors.Dim(line))
+	}
 	return nil
 }
