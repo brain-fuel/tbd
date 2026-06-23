@@ -44,6 +44,20 @@ func TestRebasePlanRenderPlain(t *testing.T) {
 	}
 }
 
+func TestNoColorEnv(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	if NewColors("", true).Enabled() {
+		t.Fatal("NO_COLOR should disable color even on a TTY")
+	}
+	if !NewColors("always", true).Enabled() {
+		t.Fatal("explicit color-mode:always must override NO_COLOR")
+	}
+	t.Setenv("NO_COLOR", "")
+	if !NewColors("", true).Enabled() {
+		t.Fatal("empty NO_COLOR should not disable color on a TTY")
+	}
+}
+
 func TestRebasePlanRenderColor(t *testing.T) {
 	p := RebasePlan{Feature: "f", Trunk: "develop", Fork: Commit{Short: "0d4c"}}
 	out := p.Render(NewColors("always", false))

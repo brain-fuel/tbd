@@ -214,4 +214,8 @@ func chFinish(l lesson) {
 	l.p(l.c.Green("That's the whole tool.") + " Branch, commit (one commit, always rebased),")
 	l.p("push for review, lease to deploy, release, finish. The invariant holds the")
 	l.p("whole way through.")
+	l.blank()
+	l.p(l.c.Bold("Global options") + " (on every command): color is on for a terminal, off when")
+	l.p("piped; force it with color-mode:none or color-mode:always, or set NO_COLOR.")
+	l.p(":local skips the network; :no-fetch skips the pre-fetch.")
 }

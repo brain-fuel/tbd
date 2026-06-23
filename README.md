@@ -34,6 +34,17 @@ tbd guard                      # exit 0/1: does the invariant hold? (for CI)
 Arguments use colon syntax: `key:value` for named args, `:flag` for booleans
 (e.g. `tbd feature finish :no-push`, `tbd release cut 1.0.0 strategy:branch,tag`).
 
+### Global options
+
+These work on every command:
+
+- `color-mode:none` / `color-mode:always`: control ANSI color in output (the
+  graphs, status, `✓`/`✗`). Omitted, color is on for a terminal and off when
+  piped. The `NO_COLOR` environment variable (when set to a non-empty value)
+  also disables color; an explicit `color-mode:always` overrides it.
+- `:local`: skip the network entirely (no fetch or push).
+- `:no-fetch`: do not fetch before acting.
+
 ## Configuration - `.tbd.yaml`
 
 ```yaml

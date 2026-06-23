@@ -5,20 +5,26 @@ package render
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
 // Colors holds whether ANSI styling is enabled.
 type Colors struct{ enabled bool }
 
-// NewColors decides whether to colorize. colorMode of "none" forces plain
-// output; "always" forces color; otherwise color follows isTTY.
+// NewColors decides whether to colorize. Precedence: an explicit colorMode wins
+// ("none" forces plain, "always" forces color); otherwise a non-empty NO_COLOR
+// environment variable disables color (https://no-color.org); otherwise color
+// follows isTTY.
 func NewColors(colorMode string, isTTY bool) Colors {
 	switch colorMode {
 	case "none":
 		return Colors{enabled: false}
 	case "always":
 		return Colors{enabled: true}
+	}
+	if os.Getenv("NO_COLOR") != "" {
+		return Colors{enabled: false}
 	}
 	return Colors{enabled: isTTY}
 }
