@@ -351,6 +351,29 @@ func (r *Repo) CommitAmend(msg string) error {
 	return err
 }
 
+// CommitInteractive makes a commit that opens the user's editor for the message,
+// inheriting the terminal. With amend it rewords/folds into the current commit;
+// a non-empty seed pre-fills the editor (used when squashing, to start from the
+// kept message).
+func (r *Repo) CommitInteractive(amend bool, seed string) error {
+	args := []string{"commit"}
+	if amend {
+		args = append(args, "--amend")
+	}
+	if seed != "" {
+		args = append(args, "-e", "-m", seed)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = r.Dir
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+	}
+	return nil
+}
+
 // ResetSoft moves HEAD to ref while keeping the index and working tree, so the
 // combined content can be re-committed as one.
 func (r *Repo) ResetSoft(ref string) error {

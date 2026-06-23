@@ -12,14 +12,16 @@ func init() {
 	cli.Register(&cli.Command{
 		Name:    "commit",
 		Summary: "Fold all work into the feature's single commit, then rebase onto trunk",
-		Usage: "tbd commit [message:\"...\"] [m:\"...\"] [:local] [:no-fetch] [:abort-on-conflict]\n\n" +
+		Usage: "tbd commit [message:\"...\"] [m:\"...\"] [:edit] [:local] [:no-fetch] [:abort-on-conflict]\n\n" +
 			"Every invocation does the same three things, always:\n" +
 			"  1. stage all changes and collapse the feature to exactly ONE commit\n" +
 			"     (create it, amend it, or squash several into one)\n" +
 			"  2. fetch the trunk\n" +
 			"  3. rebase that single commit onto the latest trunk head\n\n" +
 			"A message is required only for the feature's first commit; later commits\n" +
-			"keep the existing message unless you pass one.\n\n" +
+			"keep the existing message unless you pass one. Use :edit to open your\n" +
+			"editor on the message (e.g. to reword); it works on the first commit,\n" +
+			"an amend, or a squash, and still collapses-to-one and rebases.\n\n" +
 			"If the rebase in step 3 conflicts, the commit is already made; fix the\n" +
 			"files, \"git add\" them, and run \"tbd continue\" (or :abort-on-conflict to\n" +
 			"back the rebase out).",
@@ -51,21 +53,32 @@ func runCommit(c *cli.Context) error {
 		// No common ancestor yet (e.g. trunk unfetched); fall back to trunk ref.
 		fork = e.trunkRef
 	}
+	edit := c.Args.Flag("edit")
 	existing, _ := e.repo.LogRange(fork + ".." + branch)
 	switch n := len(existing); {
 	case n == 0:
 		if !e.repo.HasStaged() {
 			return fmt.Errorf("nothing to commit: make some changes first")
 		}
-		if msg == "" {
-			return fmt.Errorf("the feature's first commit needs a message: tbd commit message:\"...\"")
-		}
-		if err := e.repo.Commit(msg); err != nil {
-			return err
+		if edit {
+			if err := e.repo.CommitInteractive(false, msg); err != nil {
+				return err
+			}
+		} else {
+			if msg == "" {
+				return fmt.Errorf("the feature's first commit needs a message: tbd commit message:\"...\" (or :edit)")
+			}
+			if err := e.repo.Commit(msg); err != nil {
+				return err
+			}
 		}
 		fmt.Fprintln(e.out, e.okMark("created the feature commit"))
 	case n == 1:
-		if err := e.repo.CommitAmend(msg); err != nil {
+		if edit {
+			if err := e.repo.CommitInteractive(true, msg); err != nil {
+				return err
+			}
+		} else if err := e.repo.CommitAmend(msg); err != nil {
 			return err
 		}
 		fmt.Fprintln(e.out, e.okMark("amended the feature commit"))
@@ -78,7 +91,11 @@ func runCommit(c *cli.Context) error {
 		if err := e.repo.ResetSoft(fork); err != nil {
 			return err
 		}
-		if err := e.repo.Commit(keep); err != nil {
+		if edit {
+			if err := e.repo.CommitInteractive(false, keep); err != nil {
+				return err
+			}
+		} else if err := e.repo.Commit(keep); err != nil {
 			return err
 		}
 		fmt.Fprintf(e.out, "%s\n", e.okMark(fmt.Sprintf("squashed %d commits into one", n)))

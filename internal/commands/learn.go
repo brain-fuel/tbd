@@ -114,7 +114,11 @@ func chFeature(l lesson) {
 	l.p("  1. stage everything and collapse the feature to exactly one commit")
 	l.p("  2. fetch the trunk")
 	l.p("  3. rebase that commit onto the latest trunk head")
-	l.tip("a message is needed only for the first commit; later ones keep it.")
+	l.p("Reword the message any time - pass a new one, or open your editor:")
+	l.cmd("tbd commit message:\"clearer subject\"")
+	l.cmd("tbd commit :edit")
+	l.tip("a message is needed only for the first commit; later ones keep it,")
+	l.p("      unless you pass message:/m: or use :edit to change it.")
 }
 
 func chPush(l lesson) {

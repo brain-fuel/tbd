@@ -84,6 +84,11 @@ n="$(gitc rev-list --count "$fork"..feature/patch)"
 [ "$n" = "1" ] || { echo "FAIL: expected 1 commit on feature/patch, got $n"; exit 1; }
 gitc merge-base --is-ancestor origin/develop feature/patch || { echo "FAIL: feature/patch not on trunk head"; exit 1; }
 echo "feature/patch is exactly one commit on top of trunk"
+# reword via :edit (drive the editor non-interactively)
+GIT_EDITOR='printf "reworded patch\n" >' "$bin" commit :edit
+gitc log -1 --format=%s feature/patch | grep -q "reworded patch" || { echo "FAIL: :edit did not reword"; exit 1; }
+[ "$(gitc rev-list --count "$(gitc merge-base origin/develop feature/patch)"..feature/patch)" = "1" ] || { echo "FAIL: :edit changed commit count"; exit 1; }
+echo "commit :edit reworded the message, still one commit"
 
 echo "== feature push: publish the branch, then re-publish after an amend =="
 "$bin" feature push

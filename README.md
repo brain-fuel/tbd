@@ -115,7 +115,9 @@ tbd commit                            # amends the same commit, re-rebases onto 
 
 The result is invariant: after any `tbd commit`, the feature is one commit
 sitting directly on top of trunk. A message is required only for the first
-commit; later ones keep it unless you pass a new `message:`/`m:`.
+commit; later ones keep it unless you pass a new `message:`/`m:`, or use `:edit`
+to open your editor on the message (reword on the first commit, an amend, or a
+squash; it still collapses-to-one and rebases).
 
 If the rebase in step 3 conflicts, your commit is already made (work is never
 lost); the rebase stops with the file left in conflict. Fix it, `git add` the
