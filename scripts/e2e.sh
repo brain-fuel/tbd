@@ -83,6 +83,18 @@ n="$(gitc rev-list --count "$fork"..feature/patch)"
 [ "$n" = "1" ] || { echo "FAIL: expected 1 commit on feature/patch, got $n"; exit 1; }
 gitc merge-base --is-ancestor origin/develop feature/patch || { echo "FAIL: feature/patch not on trunk head"; exit 1; }
 echo "feature/patch is exactly one commit on top of trunk"
+
+echo "== feature push: publish the branch, then re-publish after an amend =="
+"$bin" feature push
+gitc ls-remote --heads origin feature/patch | grep -q feature/patch || { echo "FAIL: feature/patch not on origin"; exit 1; }
+echo "patch c" > patch_c.txt
+"$bin" commit                       # amends -> rewrites history
+"$bin" feature push                 # force-with-lease must still succeed
+remote_sha="$(gitc ls-remote origin refs/heads/feature/patch | awk '{print $1}')"
+local_sha="$(gitc rev-parse feature/patch)"
+[ "$remote_sha" = "$local_sha" ] || { echo "FAIL: origin feature/patch out of sync after amend"; exit 1; }
+echo "feature/patch published and updated via force-with-lease"
+
 "$bin" feature finish
 
 echo "== release cut (branch + tag), verify on trunk =="

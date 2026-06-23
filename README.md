@@ -57,6 +57,7 @@ tag-push: with-lease              # "with-lease" (CAS) | "force"
 | `commit` | Collapse the feature to ONE commit, fetch trunk, rebase onto it | single commit, always rebased |
 | `feature start NAME` | Branch `feature/NAME` from trunk head | start point is trunk head |
 | `feature sync [BR]` | Rebase a feature onto the latest trunk (the explicit fixer) | trunk head ⊑ feature after |
+| `feature push [BR]` | Publish the feature branch (force-with-lease, for PR/CI) | rebased onto trunk before publishing |
 | `feature finish [BR]` | Rebase (auto), fast-forward trunk, push, delete branch | trunk head ⊑ feature; trunk only fast-forwards |
 | `feature list` | Feature branches with ahead/behind + status | read-only |
 | `release cut VERSION` | Branch and/or tag per `release-strategy` | `from` must be on trunk |
@@ -112,6 +113,13 @@ tbd commit                            # amends the same commit, re-rebases onto 
 The result is invariant: after any `tbd commit`, the feature is one commit
 sitting directly on top of trunk. A message is required only for the first
 commit; later ones keep it unless you pass a new `message:`/`m:`.
+
+`commit` keeps everything local. To publish the branch for a pull request or CI,
+use `tbd feature push` — it rebases onto trunk, then force-with-lease pushes
+(force because `commit` rewrites history; the lease never clobbers a teammate's
+push). `tbd feature finish` is different: it folds the feature into trunk and
+deletes the branch, so reach for `push` when you want the branch reviewed first
+and `finish` when you are ready to integrate.
 
 ### Leases (deploy locks) — what git actually guarantees
 

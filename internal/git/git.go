@@ -323,6 +323,21 @@ func (r *Repo) RemoteHasBranch(remote, branch string) bool {
 	return strings.TrimSpace(out) != ""
 }
 
+// PushBranchLease publishes a branch with --force-with-lease, setting upstream.
+// Force is required because tbd rewrites feature history on every commit; the
+// lease makes it a compare-and-swap so a teammate's push is never clobbered.
+func (r *Repo) PushBranchLease(remote, branch string) error {
+	_, err := r.run("push", "-u", "--force-with-lease", remote, branch)
+	return err
+}
+
+// PushBranchForce publishes a branch with an unconditional force (the escape
+// hatch when the lease check is in the way).
+func (r *Repo) PushBranchForce(remote, branch string) error {
+	_, err := r.run("push", "-u", "--force", remote, branch)
+	return err
+}
+
 // PushDeleteBranch deletes a branch on the remote.
 func (r *Repo) PushDeleteBranch(remote, branch string) error {
 	_, err := r.run("push", remote, "--delete", branch)

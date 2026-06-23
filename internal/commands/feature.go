@@ -14,10 +14,11 @@ func init() {
 		Summary: "Manage short-lived feature branches off trunk",
 		Usage: "tbd feature start NAME       create feature/NAME from trunk head\n" +
 			"tbd feature sync [BRANCH]    rebase a feature onto the latest trunk\n" +
+			"tbd feature push [BRANCH]    publish the feature branch (force-with-lease)\n" +
 			"tbd feature finish [BRANCH]  rebase, fast-forward trunk, push, delete\n" +
 			"tbd feature list             list feature branches and their status\n\n" +
 			"Flags: :local (skip network) :no-fetch :no-push :keep :no-sync\n" +
-			"       :abort-on-conflict",
+			"       :abort-on-conflict :force",
 		Run: runFeature,
 	})
 }
@@ -28,12 +29,14 @@ func runFeature(c *cli.Context) error {
 		return featureStart(c)
 	case "sync":
 		return featureSync(c)
+	case "push":
+		return featurePush(c)
 	case "finish":
 		return featureFinish(c)
 	case "list", "":
 		return featureList(c)
 	default:
-		return fmt.Errorf("unknown feature subcommand %q (start|sync|finish|list)", c.Args.Pos(0))
+		return fmt.Errorf("unknown feature subcommand %q (start|sync|push|finish|list)", c.Args.Pos(0))
 	}
 }
 
@@ -98,6 +101,59 @@ func featureSync(c *cli.Context) error {
 	if err := e.visualizeRebase(branch); err != nil {
 		return handleRebaseConflict(e, c, branch, err)
 	}
+	return nil
+}
+
+func featurePush(c *cli.Context) error {
+	e, err := load(c)
+	if err != nil {
+		return err
+	}
+	branch, err := resolveFeatureBranch(e, c.Args.Pos(1))
+	if err != nil {
+		return err
+	}
+	if branch == e.trunkLocal || branch == e.trunkRef {
+		return fmt.Errorf("refusing to push the trunk branch %q as a feature; check out a feature branch", branch)
+	}
+	if e.remote == "" {
+		return fmt.Errorf("no remote to push to (a remote is required; do not pass :local)")
+	}
+	if err := checkoutIfNeeded(e, branch); err != nil {
+		return err
+	}
+
+	// Keep the published branch honest: fetch and ensure it sits on trunk,
+	// rebasing if it has drifted (same policy as finish).
+	g := e.guard(true)
+	switch err := g.Ensure(branch); {
+	case err == nil:
+		// already on top of trunk
+	case errors.Is(err, invariant.ErrDiverged) && !c.Args.Flag("no-sync"):
+		if !e.cfg.AutoRebaseEnabled() {
+			return refuseDiverged(e, branch)
+		}
+		if rerr := e.visualizeRebase(branch); rerr != nil {
+			return handleRebaseConflict(e, c, branch, rerr)
+		}
+	case errors.Is(err, invariant.ErrDiverged):
+		return refuseDiverged(e, branch)
+	case errors.Is(err, invariant.ErrDirty):
+		return fmt.Errorf("working tree has uncommitted changes; run \"tbd commit\" or stash first")
+	default:
+		return err
+	}
+
+	// Force is required because tbd rewrites feature history on every commit.
+	if c.Args.Flag("force") {
+		if err := e.repo.PushBranchForce(e.remote, branch); err != nil {
+			return fmt.Errorf("push %s: %w", branch, err)
+		}
+	} else if err := e.repo.PushBranchLease(e.remote, branch); err != nil {
+		return fmt.Errorf("push %s (someone else may have pushed to it; re-fetch or use :force): %w", branch, err)
+	}
+	head, _ := e.repo.Short(branch)
+	fmt.Fprintln(e.out, e.okMark("pushed "+branch+" @ "+head+" to "+e.remote))
 	return nil
 }
 
