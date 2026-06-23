@@ -172,6 +172,11 @@ gitc merge-base --is-ancestor origin/develop feature/conf || { echo "FAIL: not o
 echo "conflict resolved via tbd continue; single commit on trunk"
 "$bin" feature finish
 
+echo "== learn (walkthrough prints, runs no git) =="
+"$bin" learn color-mode:none | grep -q "deploy-now" || { echo "FAIL: learn missing lease scenario"; exit 1; }
+"$bin" learn topics | grep -q "lease" || { echo "FAIL: learn topics missing chapters"; exit 1; }
+echo "learn walkthrough OK"
+
 echo "== status / version / config =="
 "$bin" status
 "$bin" version

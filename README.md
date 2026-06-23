@@ -20,6 +20,7 @@ go build -o tbd ./cmd/tbd
 ## Quick start
 
 ```sh
+tbd learn                      # narrated tour of the whole workflow
 tbd init                       # write .tbd.yaml (defaults below)
 tbd feature start login        # branch feature/login off the latest trunk
 # ...commit work...
@@ -52,6 +53,7 @@ tag-push: with-lease              # "with-lease" (CAS) | "force"
 
 | Command | What it does | Invariant enforced |
 |---|---|---|
+| `learn` | Guided walkthrough of the whole workflow (`tbd learn topics` to jump) | - |
 | `init` | Write `.tbd.yaml`; `:create-trunk` makes the trunk if missing | - |
 | `status` | Trunk, current branch, features, leases, releases | read-only |
 | `commit` | Collapse the feature to ONE commit, fetch trunk, rebase onto it | single commit, always rebased |
