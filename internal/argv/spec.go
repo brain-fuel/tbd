@@ -32,23 +32,6 @@ func Opts(names ...string) []Opt {
 	return out
 }
 
-// Merge returns the union of two specs (used to fold global options into a
-// command's own).
-func (s Spec) Merge(o Spec) Spec {
-	out := Spec{
-		Named: append(append([]Opt{}, s.Named...), o.Named...),
-		Flags: append(append([]Opt{}, s.Flags...), o.Flags...),
-		Hints: map[string]string{},
-	}
-	for k, v := range s.Hints {
-		out.Hints[k] = v
-	}
-	for k, v := range o.Hints {
-		out.Hints[k] = v
-	}
-	return out
-}
-
 func names(opts []Opt) []string {
 	out := make([]string, len(opts))
 	for i, o := range opts {
@@ -67,19 +50,24 @@ func has(opts []Opt, name string) bool {
 	return false
 }
 
-// Validate checks every named argument and flag in a against the spec, returning
-// a helpful error for the first unknown one (options are checked in sorted order
-// so the message is deterministic). prog is the program name, used in the
-// "run ... help" line.
-func (s Spec) Validate(a Args, prog string) error {
+// Validate checks every named argument and flag in a against the command's spec
+// merged with the global spec, returning a helpful error for the first unknown
+// one (checked in sorted order so the message is deterministic). The command's
+// own options and the global options are reported as separate groups, so a global
+// cosmetic toggle never masquerades as one of the command's real options. prog is
+// the program name.
+func Validate(a Args, cmd, global Spec, prog string) error {
+	allowedNamed := func(n string) bool { return has(cmd.Named, n) || has(global.Named, n) }
+	allowedFlags := func(f string) bool { return has(cmd.Flags, f) || has(global.Flags, f) }
+
 	var badNamed, badFlags []string
 	for k := range a.Named {
-		if !has(s.Named, k) {
+		if !allowedNamed(k) {
 			badNamed = append(badNamed, k)
 		}
 	}
 	for f := range a.Flags {
-		if !has(s.Flags, f) {
+		if !allowedFlags(f) {
 			badFlags = append(badFlags, f)
 		}
 	}
@@ -88,49 +76,59 @@ func (s Spec) Validate(a Args, prog string) error {
 
 	if len(badNamed) > 0 {
 		k := badNamed[0]
-		return s.unknown(prog, a.Command, k+":"+a.Named[k], k, true)
+		return unknown(prog, a.Command, k+":"+a.Named[k], k, true, cmd, global)
 	}
 	if len(badFlags) > 0 {
 		f := badFlags[0]
-		return s.unknown(prog, a.Command, ":"+f, f, false)
+		return unknown(prog, a.Command, ":"+f, f, false, cmd, global)
 	}
 	return nil
 }
 
-func (s Spec) unknown(prog, command, shown, bare string, named bool) error {
+func unknown(prog, command, shown, bare string, named bool, cmd, global Spec) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "unknown option %q", shown)
 
-	if sugg := s.suggest(bare, named); sugg != "" {
+	if sugg := suggest(bare, named, cmd, global); sugg != "" {
 		fmt.Fprintf(&b, "\n  did you mean %q?", sugg)
 	}
-	if hint := s.Hints[bare]; hint != "" {
+	if hint := cmd.Hints[bare]; hint != "" {
+		fmt.Fprintf(&b, "\n  %s", hint)
+	} else if hint := global.Hints[bare]; hint != "" {
 		fmt.Fprintf(&b, "\n  %s", hint)
 	}
 
-	if named0 := names(s.Named); len(named0) > 0 {
-		fmt.Fprintf(&b, "\n  named (pass as name:value): %s", strings.Join(named0, ", "))
-	}
-	if flags0 := names(s.Flags); len(flags0) > 0 {
-		fmt.Fprintf(&b, "\n  flags (pass as :name): %s", strings.Join(flags0, ", "))
-	}
-	if command != "" {
-		fmt.Fprintf(&b, "\n  run %q for usage", prog+" help "+command)
-	}
+	groupLines(&b, command, cmd)
+	groupLines(&b, "global", global)
+	fmt.Fprintf(&b, "\n  pass named as name:value and flags as :name; see %q", prog+" help "+command)
 	return fmt.Errorf("%s", b.String())
+}
+
+// groupLines appends "<label> named:" / "<label> flags:" lines for a spec.
+func groupLines(b *strings.Builder, label string, s Spec) {
+	if n := names(s.Named); len(n) > 0 {
+		fmt.Fprintf(b, "\n  %s named: %s", label, strings.Join(n, ", "))
+	}
+	if f := names(s.Flags); len(f) > 0 {
+		fmt.Fprintf(b, "\n  %s flags: %s", label, strings.Join(f, ", "))
+	}
 }
 
 // suggest returns the closest accepted option name within edit distance 2,
 // preferring the same kind (named vs flag) the user typed.
-func (s Spec) suggest(bare string, named bool) string {
-	first, second := s.Named, s.Flags
-	if !named {
-		first, second = s.Flags, s.Named
+func suggest(bare string, named bool, cmd, global Spec) string {
+	var sameKind, otherKind []string
+	if named {
+		sameKind = append(names(cmd.Named), names(global.Named)...)
+		otherKind = append(names(cmd.Flags), names(global.Flags)...)
+	} else {
+		sameKind = append(names(cmd.Flags), names(global.Flags)...)
+		otherKind = append(names(cmd.Named), names(global.Named)...)
 	}
-	if c := closest(bare, names(first)); c != "" {
+	if c := closest(bare, sameKind); c != "" {
 		return c
 	}
-	return closest(bare, names(second))
+	return closest(bare, otherKind)
 }
 
 func closest(want string, candidates []string) string {

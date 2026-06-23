@@ -84,8 +84,8 @@ func Commands() []*Command {
 
 // Run parses argv, builds a Context, and dispatches to the matching command.
 // It returns a process exit code.
-func Run(argv []string) int {
-	args := Parse(argv)
+func Run(rawArgs []string) int {
+	args := Parse(rawArgs)
 	dir, _ := os.Getwd()
 	ctx := &Context{Args: args, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, Dir: dir, IsTTY: isTerminal(os.Stdout)}
 
@@ -99,7 +99,7 @@ func Run(argv []string) int {
 		fmt.Fprintf(ctx.Stderr, "tbd: unknown command %q (try \"tbd help\")\n", args.Command)
 		return 2
 	}
-	if err := globalSpec.Merge(cmd.Spec).Validate(args, "tbd"); err != nil {
+	if err := argv.Validate(args, cmd.Spec, globalSpec, "tbd"); err != nil {
 		fmt.Fprintf(ctx.Stderr, "tbd %s: %v\n", cmd.Name, err)
 		return 2
 	}
