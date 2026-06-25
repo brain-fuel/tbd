@@ -45,6 +45,10 @@ These work on every command:
 - `:local`: skip the network entirely (no fetch or push).
 - `:no-fetch`: do not fetch before acting.
 
+tbd telegraphs each slow procedure (fetch, push, rebase) on stderr as it runs,
+with an animated spinner on a terminal and a plain `... <label>` line when piped
+or in CI, so it is always clear what tbd is doing. stdout stays clean for piping.
+
 ## Configuration - `.tbd.yaml`
 
 ```yaml

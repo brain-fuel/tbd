@@ -54,7 +54,7 @@ func releaseCut(c *cli.Context) error {
 	}
 
 	if e.fetch {
-		if err := e.repo.Fetch(e.remote); err != nil {
+		if err := e.step("fetching "+e.remote, func() error { return e.repo.Fetch(e.remote) }); err != nil {
 			return err
 		}
 	}
@@ -84,7 +84,7 @@ func releaseCut(c *cli.Context) error {
 		}
 		fmt.Fprintln(e.out, e.okMark("created release branch "+branch))
 		if e.remote != "" && !c.Args.Flag("no-push") {
-			if err := e.repo.PushBranch(e.remote, branch); err != nil {
+			if err := e.step("pushing "+branch+" to "+e.remote, func() error { return e.repo.PushBranch(e.remote, branch) }); err != nil {
 				return fmt.Errorf("push %s: %w", branch, err)
 			}
 			fmt.Fprintln(e.out, e.okMark("pushed "+branch))
@@ -101,7 +101,7 @@ func releaseCut(c *cli.Context) error {
 		}
 		fmt.Fprintln(e.out, e.okMark("created release tag "+tag))
 		if e.remote != "" && !c.Args.Flag("no-push") {
-			if err := e.repo.PushTag(e.remote, tag); err != nil {
+			if err := e.step("pushing tag "+tag+" to "+e.remote, func() error { return e.repo.PushTag(e.remote, tag) }); err != nil {
 				return fmt.Errorf("push tag %s: %w", tag, err)
 			}
 			fmt.Fprintln(e.out, e.okMark("pushed "+tag))

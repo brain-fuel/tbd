@@ -49,7 +49,7 @@ func runContinue(c *cli.Context) error {
 		return cli.ExitError{Code: 1}
 	}
 
-	if err := e.repo.RebaseContinue(); err != nil {
+	if err := e.step("continuing the rebase", e.repo.RebaseContinue); err != nil {
 		if e.repo.RebaseInProgress() {
 			fmt.Fprintln(e.errOut, e.badMark("more conflicts to resolve"))
 			fmt.Fprintln(e.errOut, e.colors.Dim("  resolve them, \"git add\", then \"tbd continue\" again, or \"tbd continue :abort\""))

@@ -40,10 +40,8 @@ func runGuard(c *cli.Context) error {
 		target = br
 	}
 
-	if e.fetch || c.Args.Flag("fetch") {
-		if e.remote != "" {
-			_ = e.repo.Fetch(e.remote)
-		}
+	if (e.fetch || c.Args.Flag("fetch")) && e.remote != "" {
+		_ = e.step("fetching "+e.remote, func() error { return e.repo.Fetch(e.remote) })
 	}
 
 	g := e.guard(false)

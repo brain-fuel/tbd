@@ -23,8 +23,10 @@ func runStatus(c *cli.Context) error {
 		return err
 	}
 	if (e.fetch || c.Args.Flag("fetch")) && e.remote != "" {
-		_ = e.repo.Fetch(e.remote)
-		_ = e.repo.FetchTags(e.remote)
+		_ = e.step("fetching "+e.remote, func() error {
+			_ = e.repo.Fetch(e.remote)
+			return e.repo.FetchTags(e.remote)
+		})
 	}
 
 	col := e.colors

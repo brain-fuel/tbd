@@ -56,7 +56,7 @@ func featureStart(c *cli.Context) error {
 		return fmt.Errorf("branch %q already exists", branch)
 	}
 	if e.fetch {
-		if err := e.repo.Fetch(e.remote); err != nil {
+		if err := e.step("fetching "+e.remote, func() error { return e.repo.Fetch(e.remote) }); err != nil {
 			return err
 		}
 	}
@@ -159,11 +159,12 @@ func featurePush(c *cli.Context) error {
 	}
 
 	// Force is required because tbd rewrites feature history on every commit.
+	pushLabel := "pushing " + branch + " to " + e.remote
 	if c.Args.Flag("force") {
-		if err := e.repo.PushBranchForce(e.remote, branch); err != nil {
+		if err := e.step(pushLabel, func() error { return e.repo.PushBranchForce(e.remote, branch) }); err != nil {
 			return fmt.Errorf("push %s: %w", branch, err)
 		}
-	} else if err := e.repo.PushBranchCAS(e.remote, branch, expected); err != nil {
+	} else if err := e.step(pushLabel, func() error { return e.repo.PushBranchCAS(e.remote, branch, expected) }); err != nil {
 		return fmt.Errorf("push %s rejected: someone else pushed to it since you last saw it; "+
 			"run \"tbd feature sync\" or pass :force to override: %w", branch, err)
 	}
@@ -226,7 +227,7 @@ func featureFinish(c *cli.Context) error {
 	fmt.Fprintln(e.out, e.okMark(e.trunkLocal+" fast-forwarded to "+head))
 
 	if e.remote != "" && !c.Args.Flag("no-push") {
-		if err := e.repo.PushBranch(e.remote, e.trunkLocal); err != nil {
+		if err := e.step("pushing "+e.trunkLocal+" to "+e.remote, func() error { return e.repo.PushBranch(e.remote, e.trunkLocal) }); err != nil {
 			return fmt.Errorf("push %s: %w", e.trunkLocal, err)
 		}
 		fmt.Fprintln(e.out, e.okMark("pushed "+e.trunkLocal+" to "+e.remote))
@@ -237,7 +238,7 @@ func featureFinish(c *cli.Context) error {
 			return err
 		}
 		if e.remote != "" && !c.Args.Flag("no-push") && e.repo.RemoteHasBranch(e.remote, branch) {
-			if err := e.repo.PushDeleteBranch(e.remote, branch); err != nil {
+			if err := e.step("deleting "+branch+" on "+e.remote, func() error { return e.repo.PushDeleteBranch(e.remote, branch) }); err != nil {
 				fmt.Fprintln(e.errOut, e.colors.Dim("note: remote branch "+branch+" not deleted ("+err.Error()+")"))
 			}
 		}

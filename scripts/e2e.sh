@@ -216,6 +216,11 @@ echo "== learn (walkthrough prints, runs no git) =="
 "$bin" learn topics | grep -q "lease" || { echo "FAIL: learn topics missing chapters"; exit 1; }
 echo "learn walkthrough OK"
 
+echo "== telegraph: procedures are announced =="
+out="$("$bin" status :fetch 2>&1)"
+echo "$out" | grep -q "fetching origin" || { echo "FAIL: status did not telegraph the fetch"; echo "$out"; exit 1; }
+echo "procedures telegraphed"
+
 echo "== status / version / config =="
 "$bin" status
 "$bin" version

@@ -120,11 +120,12 @@ func leaseEphemeral(e env, c *cli.Context, name string) error {
 		return nil
 	}
 
+	pushLabel := "pushing lease branch " + name + " to " + e.remote
 	if c.Args.Flag("force") {
-		if err := e.repo.PushBranchForce(e.remote, name); err != nil {
+		if err := e.step(pushLabel, func() error { return e.repo.PushBranchForce(e.remote, name) }); err != nil {
 			return fmt.Errorf("force-push lease branch %s: %w", name, err)
 		}
-	} else if err := e.repo.PushBranchCAS(e.remote, name, expected); err != nil {
+	} else if err := e.step(pushLabel, func() error { return e.repo.PushBranchCAS(e.remote, name, expected) }); err != nil {
 		now := e.repo.RemoteBranchSha(e.remote, name)
 		fmt.Fprintln(e.errOut, e.badMark("lease branch "+name+" was taken by someone else"))
 		if now != "" {
@@ -162,10 +163,12 @@ func leaseTag(e env, c *cli.Context, name string) error {
 		return fmt.Errorf("%q is not a configured lease-tag %v", name, e.cfg.LeaseTags)
 	}
 	if e.remote != "" {
-		if err := e.repo.Fetch(e.remote); err != nil {
-			return err
-		}
-		if err := e.repo.FetchTags(e.remote); err != nil {
+		if err := e.step("fetching "+e.remote, func() error {
+			if err := e.repo.Fetch(e.remote); err != nil {
+				return err
+			}
+			return e.repo.FetchTags(e.remote)
+		}); err != nil {
 			return err
 		}
 	}
@@ -242,11 +245,12 @@ func moveLeaseTag(e env, c *cli.Context, name, dest, expectedOld string) error {
 		return err
 	}
 	if e.remote != "" {
+		pushLabel := "pushing lease " + name + " to " + e.remote
 		if e.cfg.TagPush == "force" || c.Args.Flag("force") {
-			if err := e.repo.PushTagForce(e.remote, name); err != nil {
+			if err := e.step(pushLabel, func() error { return e.repo.PushTagForce(e.remote, name) }); err != nil {
 				return fmt.Errorf("force-push lease %s: %w", name, err)
 			}
-		} else if err := e.repo.PushTagCAS(e.remote, name, expectedOld); err != nil {
+		} else if err := e.step(pushLabel, func() error { return e.repo.PushTagCAS(e.remote, name, expectedOld) }); err != nil {
 			_ = e.repo.FetchTags(e.remote)
 			if d, ok := e.repo.TagInfo(name); ok {
 				fmt.Fprintln(e.errOut, e.badMark("lease "+name+" was taken by someone else"))

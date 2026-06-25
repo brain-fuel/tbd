@@ -24,10 +24,16 @@ type env struct {
 	colors     render.Colors
 	out        io.Writer
 	errOut     io.Writer
+	isTTY      bool
 	remote     string // "" when no remote is in play (offline or :local)
 	trunkLocal string // local trunk branch name
 	trunkRef   string // resolved trunk ref for checks
 	fetch      bool   // whether mutating ops should fetch first
+}
+
+// step telegraphs label (and spins on a terminal) while fn runs.
+func (e env) step(label string, fn func() error) error {
+	return render.Stepper{W: e.errOut, TTY: e.isTTY, Colors: e.colors}.Run(label, fn)
 }
 
 // load resolves the env for a command invocation.
@@ -47,6 +53,7 @@ func load(c *cli.Context) (env, error) {
 		colors:     c.Colors(),
 		out:        c.Stdout,
 		errOut:     c.Stderr,
+		isTTY:      c.IsTTY,
 		trunkLocal: cfg.TrunkName,
 	}
 
@@ -64,7 +71,7 @@ func load(c *cli.Context) (env, error) {
 	// from the remote. Fetch once up front and mirror them, so a single fetch
 	// covers both trunk and the deploy branches; downstream steps skip re-fetch.
 	if cfg.LeaseStrategy == "ephemeral-branch" && e.fetch {
-		if err := repo.Fetch(e.remote); err == nil {
+		if err := e.step("fetching "+e.remote, func() error { return repo.Fetch(e.remote) }); err == nil {
 			e.syncLeaseBranches()
 			e.fetch = false
 		}
@@ -104,6 +111,7 @@ func (e env) guard(requireClean bool) invariant.Guard {
 		RequireClean: requireClean,
 		Fetch:        e.fetch,
 		Remote:       e.remote,
+		Step:         e.step,
 	}
 }
 
@@ -157,8 +165,9 @@ func (e env) visualizeRebase(feature string) error {
 	fmt.Fprintln(e.out)
 	fmt.Fprint(e.out, plan.Render(e.colors))
 	fmt.Fprintln(e.out)
-	if err := e.repo.Rebase(e.trunkRef); err != nil {
-		return fmt.Errorf("%w: %v", ErrRebaseConflict, err)
+	rebErr := e.step("rebasing "+feature+" onto "+e.trunkLocal, func() error { return e.repo.Rebase(e.trunkRef) })
+	if rebErr != nil {
+		return fmt.Errorf("%w: %v", ErrRebaseConflict, rebErr)
 	}
 	fmt.Fprintln(e.out, e.colors.Green("✓ rebased - "+feature+" now sits on top of "+e.trunkLocal))
 	return nil

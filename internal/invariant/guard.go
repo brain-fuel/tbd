@@ -25,6 +25,16 @@ type Guard struct {
 	RequireClean bool
 	Fetch        bool
 	Remote       string
+	// Step, when set, wraps a slow operation (the fetch) so callers can
+	// telegraph it and animate progress. nil runs the operation directly.
+	Step func(label string, fn func() error) error
+}
+
+func (g Guard) step(label string, fn func() error) error {
+	if g.Step == nil {
+		return fn()
+	}
+	return g.Step(label, fn)
 }
 
 // Report is the read-only result of inspecting a target against trunk.
@@ -80,7 +90,7 @@ func (g Guard) Check(target string) (Report, error) {
 // It returns a sentinel error so the caller can choose to auto-rebase or refuse.
 func (g Guard) Ensure(target string) error {
 	if g.Fetch && g.Remote != "" && g.Repo.HasRemote(g.Remote) {
-		if err := g.Repo.Fetch(g.Remote); err != nil {
+		if err := g.step("fetching "+g.Remote, func() error { return g.Repo.Fetch(g.Remote) }); err != nil {
 			return err
 		}
 	}
