@@ -216,6 +216,28 @@ echo "== learn (walkthrough prints, runs no git) =="
 "$bin" learn topics | grep -q "lease" || { echo "FAIL: learn topics missing chapters"; exit 1; }
 echo "learn walkthrough OK"
 
+echo "== rebase: squash a normal multi-commit branch onto trunk =="
+cd "$work/c1"
+gitc switch -q -c normalwork develop
+echo a > nw1.txt; gitc add -A; gitc commit -q -m nw1
+echo b > nw2.txt; gitc add -A; gitc commit -q -m nw2
+echo c > nw3.txt; gitc add -A; gitc commit -q -m nw3
+"$bin" rebase
+fork="$(gitc merge-base origin/develop normalwork)"
+[ "$(gitc rev-list --count "$fork"..normalwork)" = "1" ] || { echo "FAIL: rebase did not squash to one commit"; exit 1; }
+echo "rebase squashed 3 commits into 1 on trunk"
+
+echo "== cherry-put: squash current work onto another branch as a new branch =="
+gitc switch -q -c targetbr develop
+echo t > tb.txt; gitc add -A; gitc commit -q -m tb
+gitc switch -q normalwork
+"$bin" cherry-put onto:targetbr as:putresult
+gitc rev-parse putresult >/dev/null 2>&1 || { echo "FAIL: putresult not created"; exit 1; }
+[ "$(gitc rev-list --count targetbr..putresult)" = "1" ] || { echo "FAIL: cherry-put not a single commit on target"; exit 1; }
+gitc rev-parse normalwork >/dev/null 2>&1 || { echo "FAIL: source branch lost"; exit 1; }
+echo "cherry-put placed work on targetbr as putresult (one commit), source kept"
+gitc switch -q develop
+
 echo "== telegraph: procedures are announced =="
 out="$("$bin" status :fetch 2>&1)"
 echo "$out" | grep -q "fetching origin" || { echo "FAIL: status did not telegraph the fetch"; echo "$out"; exit 1; }

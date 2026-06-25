@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStepperNonTTYTelegraphs(t *testing.T) {
@@ -28,9 +29,21 @@ func TestStepperNonTTYTelegraphs(t *testing.T) {
 	}
 }
 
-func TestStepperTTYErasesAndPropagates(t *testing.T) {
+func TestStepperTTYFastOpIsSilent(t *testing.T) {
+	var buf bytes.Buffer
+	err := Stepper{W: &buf, TTY: true}.Run("pushing", func() error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("a fast op should show no spinner, got %q", buf.String())
+	}
+}
+
+func TestStepperTTYSlowOpSpinsAndErases(t *testing.T) {
 	var buf bytes.Buffer
 	err := Stepper{W: &buf, TTY: true}.Run("pushing", func() error {
+		time.Sleep(spinDelay + 120*time.Millisecond)
 		return errors.New("boom")
 	})
 	if err == nil || err.Error() != "boom" {
@@ -38,7 +51,7 @@ func TestStepperTTYErasesAndPropagates(t *testing.T) {
 	}
 	out := buf.String()
 	if !strings.Contains(out, "pushing") {
-		t.Fatalf("label not shown: %q", out)
+		t.Fatalf("slow op should show the label: %q", out)
 	}
 	if !strings.Contains(out, "\x1b[K") {
 		t.Fatalf("spinner line should be erased: %q", out)

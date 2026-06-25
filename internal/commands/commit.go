@@ -107,6 +107,13 @@ func runCommit(c *cli.Context) error {
 	}
 
 	// --- 2 + 3. fetch trunk and rebase the single commit onto it ---
+	return finalizeOnTrunk(e, c, branch)
+}
+
+// finalizeOnTrunk fetches the trunk and ensures branch sits on top of it,
+// rebasing (with the visualization and conflict handling) when it has diverged.
+// Shared by commit and rebase.
+func finalizeOnTrunk(e env, c *cli.Context, branch string) error {
 	g := e.guard(true)
 	switch err := g.Ensure(branch); {
 	case err == nil:
@@ -119,8 +126,7 @@ func runCommit(c *cli.Context) error {
 		}
 		return nil
 	case errors.Is(err, invariant.ErrDirty):
-		// Should not happen (we just committed), but report honestly if it does.
-		return fmt.Errorf("working tree still has uncommitted changes after commit")
+		return fmt.Errorf("working tree has uncommitted changes; commit or stash first")
 	default:
 		return err
 	}

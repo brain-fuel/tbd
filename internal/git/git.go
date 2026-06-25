@@ -203,6 +203,13 @@ func (r *Repo) RebaseContinue() error {
 	return nil
 }
 
+// MergeSquash stages the combined changes of ref relative to the current branch
+// without committing or recording a merge, so they can be committed as one.
+func (r *Repo) MergeSquash(ref string) error {
+	_, err := r.run("merge", "--squash", ref)
+	return err
+}
+
 // FFMerge fast-forwards the current branch to ref, refusing a merge commit.
 func (r *Repo) FFMerge(ref string) error {
 	_, err := r.run("merge", "--ff-only", ref)
