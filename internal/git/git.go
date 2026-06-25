@@ -203,10 +203,38 @@ func (r *Repo) RebaseContinue() error {
 	return nil
 }
 
-// MergeSquash stages the combined changes of ref relative to the current branch
-// without committing or recording a merge, so they can be committed as one.
-func (r *Repo) MergeSquash(ref string) error {
-	_, err := r.run("merge", "--squash", ref)
+// CherryPick replays ref's commit onto the current branch, keeping its message.
+func (r *Repo) CherryPick(ref string) error {
+	_, err := r.run("cherry-pick", ref)
+	return err
+}
+
+// CherryPickInProgress reports whether a cherry-pick stopped on a conflict.
+func (r *Repo) CherryPickInProgress() bool {
+	return r.runOK("rev-parse", "--verify", "--quiet", "CHERRY_PICK_HEAD")
+}
+
+// CherryPickContinue resumes a stopped cherry-pick without opening an editor.
+func (r *Repo) CherryPickContinue() error {
+	cmd := exec.Command("git", "cherry-pick", "--continue")
+	cmd.Dir = r.Dir
+	cmd.Env = append(os.Environ(), "GIT_EDITOR=true")
+	var out, errb strings.Builder
+	cmd.Stdout = &out
+	cmd.Stderr = &errb
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(errb.String())
+		if msg == "" {
+			msg = err.Error()
+		}
+		return fmt.Errorf("git cherry-pick --continue: %s", msg)
+	}
+	return nil
+}
+
+// CherryPickAbort cancels an in-progress cherry-pick.
+func (r *Repo) CherryPickAbort() error {
+	_, err := r.run("cherry-pick", "--abort")
 	return err
 }
 

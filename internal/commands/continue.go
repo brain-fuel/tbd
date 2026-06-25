@@ -10,12 +10,12 @@ import (
 func init() {
 	cli.Register(&cli.Command{
 		Name:    "continue",
-		Summary: "Resume a tbd rebase after resolving conflicts (or :abort it)",
-		Usage: "tbd continue            resume the rebase once conflicts are staged\n" +
-			"tbd continue :abort     abandon the rebase and restore the branch\n\n" +
-			"When tbd commit, feature sync, finish, or push hits a conflict it leaves\n" +
-			"the rebase in progress. Fix the files, \"git add\" them, then run this. It\n" +
-			"resumes without opening an editor, keeping the existing commit message.",
+		Summary: "Resume a tbd rebase or cherry-put after resolving conflicts (or :abort it)",
+		Usage: "tbd continue            resume once conflicts are staged\n" +
+			"tbd continue :abort     abandon the operation and restore the branch\n\n" +
+			"When tbd commit, rebase, feature sync/finish/push, or cherry-put hits a\n" +
+			"conflict it leaves the rebase or cherry-pick in progress. Fix the files,\n" +
+			"\"git add\" them, then run this. It resumes without opening an editor.",
 		Spec: argv.Spec{Flags: argv.Opts("abort")},
 		Run:  runContinue,
 	})
@@ -26,15 +26,28 @@ func runContinue(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	if !e.repo.RebaseInProgress() {
-		return fmt.Errorf("no rebase in progress")
+	rebasing := e.repo.RebaseInProgress()
+	cherryPicking := e.repo.CherryPickInProgress()
+	if !rebasing && !cherryPicking {
+		return fmt.Errorf("no rebase or cherry-pick in progress")
+	}
+
+	kind := "rebase"
+	if cherryPicking {
+		kind = "cherry-pick"
 	}
 
 	if c.Args.Flag("abort") {
-		if err := e.repo.RebaseAbort(); err != nil {
-			return err
+		var aerr error
+		if rebasing {
+			aerr = e.repo.RebaseAbort()
+		} else {
+			aerr = e.repo.CherryPickAbort()
 		}
-		fmt.Fprintln(e.out, e.colors.Yellow("rebase aborted; the branch is restored to before the rebase"))
+		if aerr != nil {
+			return aerr
+		}
+		fmt.Fprintln(e.out, e.colors.Yellow(kind+" aborted; the branch is restored to before it"))
 		return nil
 	}
 
@@ -49,8 +62,12 @@ func runContinue(c *cli.Context) error {
 		return cli.ExitError{Code: 1}
 	}
 
-	if err := e.step("continuing the rebase", e.repo.RebaseContinue); err != nil {
-		if e.repo.RebaseInProgress() {
+	cont := e.repo.RebaseContinue
+	if cherryPicking {
+		cont = e.repo.CherryPickContinue
+	}
+	if err := e.step("continuing the "+kind, cont); err != nil {
+		if e.repo.RebaseInProgress() || e.repo.CherryPickInProgress() {
 			fmt.Fprintln(e.errOut, e.badMark("more conflicts to resolve"))
 			fmt.Fprintln(e.errOut, e.colors.Dim("  resolve them, \"git add\", then \"tbd continue\" again, or \"tbd continue :abort\""))
 			return cli.ExitError{Code: 1}
@@ -60,11 +77,10 @@ func runContinue(c *cli.Context) error {
 
 	br, err := e.repo.CurrentBranch()
 	if err != nil {
-		// HEAD reattached but not to a branch; still report success.
-		fmt.Fprintln(e.out, e.okMark("rebase complete"))
+		fmt.Fprintln(e.out, e.okMark(kind+" complete"))
 		return nil
 	}
 	head, _ := e.repo.Short(br)
-	fmt.Fprintln(e.out, e.okMark("rebase complete; "+br+" @ "+head))
+	fmt.Fprintln(e.out, e.okMark(kind+" complete; "+br+" @ "+head))
 	return nil
 }

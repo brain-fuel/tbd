@@ -7,12 +7,10 @@ import (
 	"testing"
 )
 
-func TestCherryPutCreatesNewBranch(t *testing.T) {
+func TestCherryPutReplaysOneCommitLinearly(t *testing.T) {
 	dir := repoFixture(t)
-	// A target branch with its own commit.
 	gitRun(t, dir, "switch", "-q", "-c", "base", "develop")
 	writeAndCommit(t, dir, "base.txt", "base work")
-	// Our branch with two commits.
 	gitRun(t, dir, "switch", "-q", "-c", "work", "develop")
 	writeAndCommit(t, dir, "work1.txt", "w1")
 	writeAndCommit(t, dir, "work2.txt", "w2")
@@ -24,15 +22,18 @@ func TestCherryPutCreatesNewBranch(t *testing.T) {
 	if !r.Exists("refs/heads/result") {
 		t.Fatal("result branch should exist")
 	}
-	// result = base head + exactly one squashed commit.
+	// Exactly one commit on top of base...
 	if n, _ := gitCapture(dir, "rev-list", "--count", "base..result"); n != "1" {
-		t.Fatalf("expected 1 commit on result over base, got %q", n)
+		t.Fatalf("expected 1 commit over base, got %q", n)
 	}
-	// Source is untouched (still its two commits).
-	if n := commitCount(t, dir, "work"); n != 2 {
-		t.Fatalf("work should be unchanged with 2 commits, got %d", n)
+	// ...and NO merge commit (linear, as if rebased).
+	if n, _ := gitCapture(dir, "rev-list", "--count", "--merges", "base..result"); n != "0" {
+		t.Fatalf("result should have no merge commit, got %q merges", n)
 	}
-	// We are left on result, carrying both base and work changes.
+	// The source branch is squashed to a single commit.
+	if n := commitCount(t, dir, "work"); n != 1 {
+		t.Fatalf("work should be squashed to 1 commit, got %d", n)
+	}
 	cur, _ := r.CurrentBranch()
 	if cur != "result" {
 		t.Fatalf("expected to be on result, on %q", cur)
@@ -41,6 +42,39 @@ func TestCherryPutCreatesNewBranch(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
 			t.Fatalf("result should contain %s", f)
 		}
+	}
+}
+
+func TestCherryPutConflictThenContinue(t *testing.T) {
+	dir := repoFixture(t)
+	gitRun(t, dir, "switch", "-q", "-c", "base", "develop")
+	writeAndCommit(t, dir, "shared.txt", "base version\n")
+	gitRun(t, dir, "switch", "-q", "-c", "work", "develop")
+	writeAndCommit(t, dir, "shared.txt", "work version\n")
+
+	err := runCherryPut(mustCtx(dir, "cherry-put", "onto:base", "as:result"))
+	if err == nil {
+		t.Fatal("expected a cherry-pick conflict")
+	}
+	r, _ := openRepo(dir)
+	if !r.CherryPickInProgress() {
+		t.Fatal("expected cherry-pick left in progress")
+	}
+	if cur, _ := r.CurrentBranch(); cur != "result" {
+		t.Fatalf("conflict should leave us on result, on %q", cur)
+	}
+
+	// Resolve and continue.
+	writeFile(t, dir, "shared.txt", "resolved\n")
+	gitRun(t, dir, "add", "shared.txt")
+	if err := runContinue(mustCtx(dir, "continue")); err != nil {
+		t.Fatalf("continue: %v", err)
+	}
+	if r.CherryPickInProgress() {
+		t.Fatal("cherry-pick should be finished")
+	}
+	if n, _ := gitCapture(dir, "rev-list", "--count", "base..result"); n != "1" {
+		t.Fatalf("expected 1 commit on result after continue, got %q", n)
 	}
 }
 

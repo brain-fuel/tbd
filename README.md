@@ -75,7 +75,7 @@ tag-push: with-lease              # "with-lease" (CAS) | "force"
 | `commit` | Collapse the feature to ONE commit, fetch trunk, rebase onto it | single commit, always rebased |
 | `continue` | Resume a tbd rebase after resolving conflicts (`:abort` to back out) | - |
 | `rebase` | Squash the current branch to one commit and rebase it onto trunk | single commit on trunk |
-| `cherry-put` | Squash the current branch onto another branch (`onto:`) as a new branch (`as:`) | single commit on `onto:` |
+| `cherry-put` | Squash the current branch and replay it as one linear commit onto another branch (`onto:`) as a new branch (`as:`) | single commit on `onto:`, no merge |
 | `feature start NAME` | Branch `feature/NAME` from trunk head | start point is trunk head |
 | `feature sync [BR]` | Rebase a feature onto the latest trunk (the explicit fixer) | trunk head ⊑ feature after |
 | `feature push [BR]` | Publish the feature branch (force-with-lease, for PR/CI) | rebased onto trunk before publishing |

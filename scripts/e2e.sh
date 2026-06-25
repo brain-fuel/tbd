@@ -234,8 +234,9 @@ gitc switch -q normalwork
 "$bin" cherry-put onto:targetbr as:putresult
 gitc rev-parse putresult >/dev/null 2>&1 || { echo "FAIL: putresult not created"; exit 1; }
 [ "$(gitc rev-list --count targetbr..putresult)" = "1" ] || { echo "FAIL: cherry-put not a single commit on target"; exit 1; }
+[ "$(gitc rev-list --count --merges targetbr..putresult)" = "0" ] || { echo "FAIL: cherry-put left a merge commit"; exit 1; }
 gitc rev-parse normalwork >/dev/null 2>&1 || { echo "FAIL: source branch lost"; exit 1; }
-echo "cherry-put placed work on targetbr as putresult (one commit), source kept"
+echo "cherry-put placed work on targetbr as putresult (one linear commit, no merge)"
 gitc switch -q develop
 
 echo "== telegraph: procedures are announced =="
