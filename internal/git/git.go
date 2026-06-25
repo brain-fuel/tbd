@@ -106,6 +106,12 @@ func (r *Repo) ValidTagName(tag string) bool {
 	return r.runOK("check-ref-format", "refs/tags/"+tag)
 }
 
+// GitDir returns the absolute path to this repository's .git directory, used to
+// stash tbd's own per-repo state (e.g. a pending operation to resume).
+func (r *Repo) GitDir() (string, error) {
+	return r.run("rev-parse", "--absolute-git-dir")
+}
+
 // Fetch updates remote-tracking refs and prunes deleted ones.
 func (r *Repo) Fetch(remote string) error {
 	_, err := r.run("fetch", "--prune", remote)

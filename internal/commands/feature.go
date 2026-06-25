@@ -208,8 +208,11 @@ func featureFinish(c *cli.Context) error {
 		if !e.cfg.AutoRebaseEnabled() {
 			return refuseDiverged(e, branch)
 		}
+		// Record the finish so that, if the rebase conflicts, tbd continue can
+		// replay it and complete the integration (ff trunk, push, delete) rather
+		// than leaving the branch rebased-but-not-finished.
 		if rerr := e.visualizeRebase(branch); rerr != nil {
-			return handleRebaseConflict(e, c, branch, rerr)
+			return handleRebaseConflict(e, c, branch, rerr, c.Raw...)
 		}
 	case errors.Is(err, invariant.ErrDiverged):
 		return refuseDiverged(e, branch)
@@ -218,6 +221,9 @@ func featureFinish(c *cli.Context) error {
 	default:
 		return err
 	}
+
+	// A clean finish supersedes any pending resume record from an earlier attempt.
+	e.clearResume()
 
 	// Fast-forward trunk to the (now rebased) feature.
 	if err := e.ensureLocalTrunk(); err != nil {

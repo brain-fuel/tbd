@@ -50,6 +50,48 @@ func TestFinishConflictLeavesRebaseInProgress(t *testing.T) {
 	gitRun(t, dir, "rebase", "--abort")
 }
 
+// Regression for bug 0004: after a finish hits a conflict, resolving it and
+// running tbd continue must complete the finish (fast-forward trunk, delete the
+// branch), not just finish the low-level rebase.
+func TestFinishConflictContinueCompletesFinish(t *testing.T) {
+	dir := repoFixture(t)
+	setupConflict(t, dir)
+	featSubject := "feature version" // the feature commit's content/subject marker
+
+	// Finish conflicts and leaves the rebase in progress, with a resume record.
+	fctx, _, _ := newCtx(dir, "feature", "finish", ":no-push")
+	if err := featureFinish(fctx); err == nil {
+		t.Fatal("expected finish to conflict")
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".git", "tbd-resume")); err != nil {
+		t.Fatalf("expected a resume record after the conflicting finish: %v", err)
+	}
+
+	// Resolve the conflict and continue.
+	writeFile(t, dir, "shared.txt", "resolved")
+	gitRun(t, dir, "add", "shared.txt")
+	cctx, _, _ := newCtx(dir, "continue")
+	if err := runContinue(cctx); err != nil {
+		t.Fatalf("continue: %v", err)
+	}
+
+	r, _ := openRepo(dir)
+	// The finish must have completed: branch gone, trunk advanced to the feature.
+	if r.Exists("feature/c") {
+		t.Fatal("feature/c should be deleted after continue resumes the finish")
+	}
+	if subj := r.Subject("develop"); subj != featSubject {
+		t.Fatalf("develop head = %q, want the resumed feature commit %q", subj, featSubject)
+	}
+	cur, _ := r.CurrentBranch()
+	if cur != "develop" {
+		t.Fatalf("expected to land on develop after finish, got %q", cur)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".git", "tbd-resume")); !os.IsNotExist(err) {
+		t.Fatal("resume record should be cleared after a completed finish")
+	}
+}
+
 func TestFinishConflictAbortOnFlag(t *testing.T) {
 	dir := repoFixture(t)
 	setupConflict(t, dir)

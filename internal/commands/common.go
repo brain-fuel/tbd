@@ -185,14 +185,21 @@ func (e env) visualizeRebase(feature string) error {
 // :abort-on-conflict the rebase is rolled back and the branch left unchanged;
 // otherwise it is left in progress with guidance. Non-conflict errors pass
 // through unchanged.
-func handleRebaseConflict(e env, c *cli.Context, branch string, rerr error) error {
+// resumeArgs, when non-empty, is the argv to replay once the conflict is
+// resolved and tbd continue completes the rebase, so a multi-step operation
+// (feature finish) actually finishes instead of being dropped at the rebase.
+func handleRebaseConflict(e env, c *cli.Context, branch string, rerr error, resumeArgs ...string) error {
 	if !errors.Is(rerr, ErrRebaseConflict) {
 		return rerr
 	}
 	if c.Args.Flag("abort-on-conflict") {
 		_ = e.repo.RebaseAbort()
+		e.clearResume()
 		fmt.Fprintln(e.errOut, e.colors.Yellow("rebase aborted; "+branch+" is unchanged"))
 		return cli.ExitError{Code: 1}
+	}
+	if len(resumeArgs) > 0 {
+		_ = e.writeResume(resumeArgs)
 	}
 	fmt.Fprintln(e.errOut, e.badMark("rebase of "+branch+" hit a conflict"))
 	fmt.Fprintln(e.errOut, e.colors.Dim("  fix the files, \"git add\" them, then run \"tbd continue\","))

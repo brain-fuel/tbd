@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"strings"
 
 	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/cli"
@@ -47,6 +48,7 @@ func runContinue(c *cli.Context) error {
 		if aerr != nil {
 			return aerr
 		}
+		e.clearResume()
 		fmt.Fprintln(e.out, e.colors.Yellow(kind+" aborted; the branch is restored to before it"))
 		return nil
 	}
@@ -76,11 +78,31 @@ func runContinue(c *cli.Context) error {
 	}
 
 	br, err := e.repo.CurrentBranch()
-	if err != nil {
+	if err == nil {
+		head, _ := e.repo.Short(br)
+		fmt.Fprintln(e.out, e.okMark(kind+" complete; "+br+" @ "+head))
+	} else {
 		fmt.Fprintln(e.out, e.okMark(kind+" complete"))
-		return nil
 	}
-	head, _ := e.repo.Short(br)
-	fmt.Fprintln(e.out, e.okMark(kind+" complete; "+br+" @ "+head))
+
+	// If a higher-level operation (feature finish) was interrupted by this
+	// rebase, replay it now so the integration actually completes instead of
+	// leaving the branch rebased-but-unfinished.
+	if rebasing {
+		if rargs, ok := e.readResume(); ok {
+			e.clearResume()
+			fmt.Fprintln(e.out, e.colors.Bold("resuming: tbd "+strings.Join(rargs, " ")))
+			rctx := &cli.Context{
+				Args:   cli.Parse(rargs),
+				Raw:    rargs,
+				Stdin:  c.Stdin,
+				Stdout: c.Stdout,
+				Stderr: c.Stderr,
+				Dir:    c.Dir,
+				IsTTY:  c.IsTTY,
+			}
+			return cli.Dispatch(rctx)
+		}
+	}
 	return nil
 }

@@ -56,9 +56,10 @@ func writeAndCommit(t *testing.T, dir, file, msg string) {
 // newCtx builds a Context rooted at dir with captured output. color-mode:none
 // keeps assertions free of ANSI codes.
 func newCtx(dir string, argv ...string) (*cli.Context, *bytes.Buffer, *bytes.Buffer) {
-	args := cli.Parse(append(argv, "color-mode:none"))
+	raw := append(argv, "color-mode:none")
+	args := cli.Parse(raw)
 	var out, errb bytes.Buffer
-	return &cli.Context{Args: args, Stdout: &out, Stderr: &errb, Dir: dir}, &out, &errb
+	return &cli.Context{Args: args, Raw: raw, Stdout: &out, Stderr: &errb, Dir: dir}, &out, &errb
 }
 
 func TestGuardPassesOnTrunk(t *testing.T) {

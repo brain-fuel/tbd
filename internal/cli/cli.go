@@ -33,6 +33,7 @@ func (e ExitError) Error() string { return fmt.Sprintf("exit status %d", e.Code)
 // output streams, and the directory from which tbd was invoked.
 type Context struct {
 	Args   Args
+	Raw    []string // the raw argv tokens this command was invoked with
 	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
@@ -87,7 +88,7 @@ func Commands() []*Command {
 func Run(rawArgs []string) int {
 	args := Parse(rawArgs)
 	dir, _ := os.Getwd()
-	ctx := &Context{Args: args, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, Dir: dir, IsTTY: isTerminal(os.Stdout)}
+	ctx := &Context{Args: args, Raw: rawArgs, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, Dir: dir, IsTTY: isTerminal(os.Stdout)}
 
 	switch args.Command {
 	case "", "help":
@@ -112,6 +113,21 @@ func Run(rawArgs []string) int {
 		return 1
 	}
 	return 0
+}
+
+// Dispatch validates and runs the command named by ctx.Args.Command using the
+// given Context, returning the command's error. Unlike Run it does not touch the
+// process streams or exit code, so a command handler can invoke it to resume a
+// previously interrupted operation (see tbd continue).
+func Dispatch(ctx *Context) error {
+	cmd, ok := registry[ctx.Args.Command]
+	if !ok {
+		return fmt.Errorf("unknown command %q", ctx.Args.Command)
+	}
+	if err := argv.Validate(ctx.Args, cmd.Spec, globalSpec, "tbd"); err != nil {
+		return err
+	}
+	return cmd.Run(ctx)
 }
 
 // isTerminal reports whether w is a character device (a terminal).
