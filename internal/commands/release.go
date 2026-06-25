@@ -62,6 +62,10 @@ func releaseCut(c *cli.Context) error {
 		}
 	}
 	if strategy.Has("tag") {
+		if !strings.Contains(e.cfg.ReleaseTagTemplate, "{version}") {
+			return fmt.Errorf("release-tag-template %q has no {version} placeholder; every release would collide on the tag %q",
+				e.cfg.ReleaseTagTemplate, e.cfg.ReleaseTagTemplate)
+		}
 		if tag := strings.ReplaceAll(e.cfg.ReleaseTagTemplate, "{version}", version); !e.repo.ValidTagName(tag) {
 			return fmt.Errorf("version %q is not valid for a release (it would make the invalid tag %q)", version, tag)
 		}

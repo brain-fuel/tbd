@@ -305,6 +305,26 @@ func (r *Repo) TagInfo(name string) (TagDetail, bool) {
 	return d, true
 }
 
+// ConflictingBranch returns an existing local branch that would block creating
+// branch because of git's directory/file ref layout: you cannot have both
+// "a/b" (a file) and "a" or "a/b/c" (a needs "a/" to be a directory). It returns
+// the conflicting branch and true, or "" and false when branch is creatable.
+func (r *Repo) ConflictingBranch(branch string) (string, bool) {
+	existing, err := r.ListBranches("")
+	if err != nil {
+		return "", false
+	}
+	for _, b := range existing {
+		if b == branch {
+			continue // exact duplicate is reported separately
+		}
+		if strings.HasPrefix(branch, b+"/") || strings.HasPrefix(b, branch+"/") {
+			return b, true
+		}
+	}
+	return "", false
+}
+
 // ListBranches returns local branch names matching pattern (glob, e.g.
 // "feature/*"). An empty result is not an error.
 func (r *Repo) ListBranches(pattern string) ([]string, error) {

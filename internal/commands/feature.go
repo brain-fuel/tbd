@@ -61,6 +61,9 @@ func featureStart(c *cli.Context) error {
 	if e.repo.Exists(branch) {
 		return fmt.Errorf("branch %q already exists", branch)
 	}
+	if other, clash := e.repo.ConflictingBranch(branch); clash {
+		return fmt.Errorf("cannot create branch %q: it collides with the existing branch %q (git stores branches as files, so the two cannot coexist)", branch, other)
+	}
 	if e.fetch {
 		if err := e.step("fetching "+e.remote, func() error { return e.repo.Fetch(e.remote) }); err != nil {
 			return err

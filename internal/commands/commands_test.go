@@ -149,6 +149,24 @@ func TestFeatureStartRejectsInvalidName(t *testing.T) {
 	}
 }
 
+// Regression for bug 0008: a directory/file ref collision is reported cleanly,
+// not as raw git porcelain, and unrelated nested names still work.
+func TestFeatureStartRejectsDirFileCollision(t *testing.T) {
+	dir := repoFixture(t)
+	if err := featureStart(mustCtx(dir, "feature", "start", "a", ":local")); err != nil {
+		t.Fatal(err)
+	}
+	// feature/a exists -> feature/a/b collides.
+	err := featureStart(mustCtx(dir, "feature", "start", "a/b", ":local"))
+	if err == nil || !strings.Contains(err.Error(), "collides with the existing branch") {
+		t.Fatalf("want clean collision error, got %v", err)
+	}
+	// An unrelated nested name still creates.
+	if err := featureStart(mustCtx(dir, "feature", "start", "p/q", ":local")); err != nil {
+		t.Fatalf("unrelated nested name should succeed: %v", err)
+	}
+}
+
 func TestFeatureFinishAutoRebaseVisualized(t *testing.T) {
 	dir := repoFixture(t)
 	ctx, _, _ := newCtx(dir, "feature", "start", "x")

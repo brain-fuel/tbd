@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -30,6 +32,20 @@ func TestReleaseCutRejectsRefInvalidVersion(t *testing.T) {
 		if r.Exists("release/1 0") || r.Exists("v1 0") {
 			t.Fatalf("strategy %s: no ref should have been created", tc.strategy)
 		}
+	}
+}
+
+// Regression for bug 0007: a tag-strategy template lacking {version} is rejected
+// up front (every release would otherwise collide on one tag).
+func TestReleaseRejectsTemplateWithoutVersion(t *testing.T) {
+	dir := repoFixture(t)
+	if err := os.WriteFile(filepath.Join(dir, ".tbd.yaml"),
+		[]byte("trunk-name: develop\nrelease-strategy: tag\nrelease-tag-template: RELEASE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := runRelease(mustCtx(dir, "release", "cut", "1.0.0", ":local"))
+	if err == nil || !strings.Contains(err.Error(), "no {version} placeholder") {
+		t.Fatalf("expected a missing-placeholder rejection, got %v", err)
 	}
 }
 
