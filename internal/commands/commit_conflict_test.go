@@ -2,6 +2,7 @@ package commands
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"goforge.dev/tbd/internal/cli"
@@ -98,6 +99,22 @@ func TestContinueResolvesCommitConflict(t *testing.T) {
 	if !r.IsAncestor(th, fh) {
 		t.Fatal("feature must sit on top of trunk after continue")
 	}
+}
+
+func TestStatusShowsRebaseInProgress(t *testing.T) {
+	dir := repoFixture(t)
+	setupCommitConflict(t, dir)
+	if err := runCommit(mustCtx(dir, "commit")); err == nil {
+		t.Fatal("expected conflict")
+	}
+	ctx, out, _ := newCtx(dir, "status")
+	if err := runStatus(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "rebase in progress") {
+		t.Fatalf("status should report the rebase in progress:\n%s", out.String())
+	}
+	gitRun(t, dir, "rebase", "--abort")
 }
 
 func TestContinueNoRebase(t *testing.T) {

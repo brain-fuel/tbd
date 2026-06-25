@@ -237,7 +237,20 @@ gitc rev-parse putresult >/dev/null 2>&1 || { echo "FAIL: putresult not created"
 [ "$(gitc rev-list --count --merges targetbr..putresult)" = "0" ] || { echo "FAIL: cherry-put left a merge commit"; exit 1; }
 gitc rev-parse normalwork >/dev/null 2>&1 || { echo "FAIL: source branch lost"; exit 1; }
 echo "cherry-put placed work on targetbr as putresult (one linear commit, no merge)"
+# :keep-source leaves the source branch untouched
+gitc switch -q targetbr
+echo k > kw.txt; gitc add -A; gitc commit -q -m kw
+before="$(gitc rev-parse targetbr)"
+"$bin" cherry-put onto:develop as:keepres :keep-source
+[ "$(gitc rev-parse targetbr)" = "$before" ] || { echo "FAIL: :keep-source mutated the source"; exit 1; }
+gitc rev-parse keepres >/dev/null 2>&1 || { echo "FAIL: keepres not created"; exit 1; }
+echo "cherry-put :keep-source left the source untouched"
 gitc switch -q develop
+
+echo "== arg validation: stray positional is rejected =="
+if "$bin" version foo 2>"$work/pos.txt"; then echo "FAIL: stray positional not rejected"; exit 1; fi
+grep -q "unexpected argument" "$work/pos.txt" || { echo "FAIL: no positional error"; cat "$work/pos.txt"; exit 1; }
+echo "stray positional rejected"
 
 echo "== telegraph: procedures are announced =="
 out="$("$bin" status :fetch 2>&1)"

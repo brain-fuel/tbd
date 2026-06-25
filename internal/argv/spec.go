@@ -16,10 +16,15 @@ type Opt struct {
 // Spec declares the options a command accepts. Validate uses it to reject
 // anything else. Hints maps an unknown option name to a tailored message (e.g.
 // "that lives in config, not on the command line").
+//
+// Positionals names the positional arguments the command accepts, in order; its
+// length is the maximum allowed. A nil Positionals means the command takes none,
+// so any positional is rejected.
 type Spec struct {
-	Named []Opt
-	Flags []Opt
-	Hints map[string]string
+	Named       []Opt
+	Flags       []Opt
+	Positionals []string
+	Hints       map[string]string
 }
 
 // Opts builds a slice of options from bare names (no help text). Handy for
@@ -82,7 +87,23 @@ func Validate(a Args, cmd, global Spec, prog string) error {
 		f := badFlags[0]
 		return unknown(prog, a.Command, ":"+f, f, false, cmd, global)
 	}
+	if len(a.Positional) > len(cmd.Positionals) {
+		return unexpectedPositional(prog, a.Command, a.Positional[len(cmd.Positionals)], cmd)
+	}
 	return nil
+}
+
+func unexpectedPositional(prog, command, extra string, cmd Spec) error {
+	var b strings.Builder
+	fmt.Fprintf(&b, "unexpected argument %q", extra)
+	switch n := len(cmd.Positionals); {
+	case n == 0:
+		fmt.Fprintf(&b, "\n  %s takes no positional arguments", command)
+	default:
+		fmt.Fprintf(&b, "\n  %s takes at most %d: %s", command, n, strings.Join(cmd.Positionals, " "))
+	}
+	fmt.Fprintf(&b, "\n  run %q for usage", prog+" help "+command)
+	return fmt.Errorf("%s", b.String())
 }
 
 func unknown(prog, command, shown, bare string, named bool, cmd, global Spec) error {

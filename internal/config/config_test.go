@@ -172,4 +172,9 @@ func TestValidate(t *testing.T) {
 	if err := c.Validate(); err == nil {
 		t.Fatal("expected duplicate lease-branches error")
 	}
+	c = Default()
+	c.BranchPush = "bogus"
+	if err := c.Validate(); err == nil {
+		t.Fatal("expected bad branch-push error")
+	}
 }

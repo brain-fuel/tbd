@@ -8,9 +8,10 @@ import (
 // command-specific spec (no globals mingled in)
 func leaseSpec() Spec {
 	return Spec{
-		Named: Opts("to"),
-		Flags: Opts("no-advance", "force"),
-		Hints: map[string]string{"strategy": "set lease-strategy in .tbd.yaml, not on the command line"},
+		Named:       Opts("to"),
+		Flags:       Opts("no-advance", "force"),
+		Positionals: []string{"subcommand-or-name", "name"},
+		Hints:       map[string]string{"strategy": "set lease-strategy in .tbd.yaml, not on the command line"},
 	}
 }
 
@@ -67,6 +68,29 @@ func TestValidateDeterministic(t *testing.T) {
 	err := Validate(a, Spec{}, Spec{}, "tbd")
 	if err == nil || !strings.Contains(err.Error(), `"aaa:2"`) {
 		t.Fatalf("expected aaa reported first, got %v", err)
+	}
+}
+
+func TestValidatePositionals(t *testing.T) {
+	// A command that takes none rejects a stray positional.
+	a := Parse([]string{"version", "foo"})
+	err := Validate(a, Spec{}, globalSpec(), "tbd")
+	if err == nil || !strings.Contains(err.Error(), `unexpected argument "foo"`) {
+		t.Fatalf("expected unexpected-argument error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "takes no positional") {
+		t.Fatalf("message should explain none allowed:\n%s", err.Error())
+	}
+
+	// Within the declared max is fine.
+	sub := Spec{Positionals: []string{"subcommand", "name"}}
+	if err := Validate(Parse([]string{"lease", "take", "dev"}), sub, globalSpec(), "tbd"); err != nil {
+		t.Fatalf("two positionals should validate: %v", err)
+	}
+	// One too many is rejected.
+	if err := Validate(Parse([]string{"lease", "take", "dev", "extra"}), sub, globalSpec(), "tbd"); err == nil ||
+		!strings.Contains(err.Error(), `unexpected argument "extra"`) {
+		t.Fatalf("expected too-many-positionals error, got %v", err)
 	}
 }
 

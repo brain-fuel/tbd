@@ -26,7 +26,8 @@ type Config struct {
 	LeaseBranches       []string    `yaml:"lease-branches"` // used only when lease-strategy: ephemeral-branch
 	Remote              string      `yaml:"remote"`
 	AutoRebase          *bool       `yaml:"auto-rebase"`
-	TagPush             string      `yaml:"tag-push"`
+	TagPush             string      `yaml:"tag-push"`    // with-lease | force (lease tags)
+	BranchPush          string      `yaml:"branch-push"` // with-lease | force (feature push, ephemeral lease)
 }
 
 // StrategySet is the value of release-strategy, which may be written as a single
@@ -100,6 +101,7 @@ func Default() Config {
 		Remote:              "origin",
 		AutoRebase:          boolPtr(true),
 		TagPush:             "with-lease",
+		BranchPush:          "with-lease",
 	}
 }
 
@@ -182,6 +184,11 @@ func (c Config) Validate() error {
 	case "", "with-lease", "force":
 	default:
 		return fmt.Errorf("tag-push must be \"with-lease\" or \"force\", got %q", c.TagPush)
+	}
+	switch c.BranchPush {
+	case "", "with-lease", "force":
+	default:
+		return fmt.Errorf("branch-push must be \"with-lease\" or \"force\", got %q", c.BranchPush)
 	}
 	return nil
 }

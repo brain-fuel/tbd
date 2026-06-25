@@ -20,8 +20,11 @@ func init() {
 			"tbd feature list             list feature branches and their status\n\n" +
 			"Flags: :local (skip network) :no-fetch :no-push :keep :no-sync\n" +
 			"       :abort-on-conflict :force",
-		Spec: argv.Spec{Flags: argv.Opts("no-push", "keep", "no-sync", "abort-on-conflict", "force")},
-		Run:  runFeature,
+		Spec: argv.Spec{
+			Flags:       argv.Opts("no-push", "keep", "no-sync", "abort-on-conflict", "force"),
+			Positionals: []string{"subcommand", "branch"},
+		},
+		Run: runFeature,
 	})
 }
 
@@ -160,7 +163,7 @@ func featurePush(c *cli.Context) error {
 
 	// Force is required because tbd rewrites feature history on every commit.
 	pushLabel := "pushing " + branch + " to " + e.remote
-	if c.Args.Flag("force") {
+	if c.Args.Flag("force") || e.cfg.BranchPush == "force" {
 		if err := e.step(pushLabel, func() error { return e.repo.PushBranchForce(e.remote, branch) }); err != nil {
 			return fmt.Errorf("push %s: %w", branch, err)
 		}

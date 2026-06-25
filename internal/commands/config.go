@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 
+	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/cli"
 	"goforge.dev/tbd/internal/config"
 )
@@ -16,7 +17,8 @@ func init() {
 			"KEY is one of: trunk-name, feature-prefix, release-strategy,\n" +
 			"release-branch-prefix, release-tag-template, lease-strategy,\n" +
 			"lease-tags, remote, auto-rebase, tag-push.",
-		Run: runConfig,
+		Spec: argv.Spec{Positionals: []string{"subcommand", "key"}},
+		Run:  runConfig,
 	})
 }
 
@@ -37,11 +39,12 @@ func runConfig(c *cli.Context) error {
 		"remote":                cfg.Remote,
 		"auto-rebase":           fmt.Sprintf("%t", cfg.AutoRebaseEnabled()),
 		"tag-push":              cfg.TagPush,
+		"branch-push":           cfg.BranchPush,
 	}
 	order := []string{
 		"trunk-name", "feature-prefix", "release-strategy", "release-branch-prefix",
 		"release-tag-template", "lease-strategy", "lease-tags", "lease-branches",
-		"remote", "auto-rebase", "tag-push",
+		"remote", "auto-rebase", "tag-push", "branch-push",
 	}
 
 	switch c.Args.Pos(0) {

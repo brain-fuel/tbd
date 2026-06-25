@@ -11,14 +11,16 @@ func init() {
 	cli.Register(&cli.Command{
 		Name:    "cherry-put",
 		Summary: "Squash the current branch and replay it as one commit onto another branch",
-		Usage: "tbd cherry-put onto:BRANCH as:NEWBRANCH [message:\"...\"] [:edit]\n\n" +
-			"Squashes the current branch's work into a single commit, then cherry-picks\n" +
-			"that one commit onto onto:BRANCH as a new branch as:NEWBRANCH, so it sits on\n" +
-			"top linearly with no merge commit, exactly as if you had rebased it there\n" +
-			"yourself. If the replay conflicts, fix it and run \"tbd continue\".",
+		Usage: "tbd cherry-put onto:BRANCH as:NEWBRANCH [message:\"...\"] [:edit] [:keep-source]\n\n" +
+			"Squashes the current branch's work into a single commit, then replays that\n" +
+			"one commit onto onto:BRANCH as a new branch as:NEWBRANCH, so it sits on top\n" +
+			"linearly with no merge commit, exactly as if you had rebased it there\n" +
+			"yourself. By default the current branch is squashed too; :keep-source leaves\n" +
+			"it untouched (the squash happens on the new branch). If the replay conflicts,\n" +
+			"fix it and run \"tbd continue\".",
 		Spec: argv.Spec{
 			Named: argv.Opts("onto", "as", "message", "m"),
-			Flags: argv.Opts("edit"),
+			Flags: argv.Opts("edit", "keep-source"),
 		},
 		Run: runCherryPut,
 	})
@@ -66,11 +68,65 @@ func runCherryPut(c *cli.Context) error {
 	msg := c.Args.GetOr("message", c.Args.GetOr("m", ""))
 	edit := c.Args.Flag("edit")
 
-	// --- squash on YOUR branch into one commit ---
-	if len(existing) > 1 {
+	if c.Args.Flag("keep-source") {
+		// Squash on a copy and rebase it; the source branch is never touched.
+		if err := e.repo.BranchCreate(as, src); err != nil {
+			return err
+		}
+		if err := e.repo.Checkout(as); err != nil {
+			return err
+		}
+		if err := e.squashToOne(as, fork, len(existing), msg, edit); err != nil {
+			return err
+		}
+		if rerr := e.step("rebasing "+as+" onto "+onto, func() error { return e.repo.Rebase(onto) }); rerr != nil {
+			return handleRebaseConflict(e, c, as, fmt.Errorf("%w: %v", ErrRebaseConflict, rerr))
+		}
+	} else {
+		// Squash the source in place, then cherry-pick the single commit.
+		if err := e.squashToOne(src, fork, len(existing), msg, edit); err != nil {
+			return err
+		}
+		payload, err := e.repo.RevParse(src)
+		if err != nil {
+			return err
+		}
+		if err := e.repo.BranchCreate(as, onto); err != nil {
+			return err
+		}
+		if err := e.repo.Checkout(as); err != nil {
+			return err
+		}
+		if err := e.step("placing the commit onto "+onto, func() error { return e.repo.CherryPick(payload) }); err != nil {
+			if e.repo.CherryPickInProgress() {
+				fmt.Fprintln(e.errOut, e.badMark("cherry-put hit a conflict placing the commit onto "+onto))
+				fmt.Fprintln(e.errOut, e.colors.Dim("  fix the files, \"git add\" them, then \"tbd continue\","))
+				fmt.Fprintln(e.errOut, e.colors.Dim("  or \"tbd continue :abort\" to undo (leaves "+as+" at "+onto+")"))
+				return cli.ExitError{Code: 1}
+			}
+			return err
+		}
+	}
+
+	short, _ := e.repo.Short(as)
+	fmt.Fprintln(e.out, e.okMark("cherry-put "+src+" onto "+onto+" as "+as+" @ "+short+" (one commit, no merge)"))
+	if c.Args.Flag("keep-source") {
+		fmt.Fprintln(e.out, e.colors.Dim("  you are on "+as+"; "+src+" is unchanged"))
+	} else {
+		fmt.Fprintln(e.out, e.colors.Dim("  you are on "+as+"; "+src+" keeps the squashed commit"))
+	}
+	return nil
+}
+
+// squashToOne collapses the checked-out branch (fork..HEAD) into a single commit.
+// With more than one commit it squashes via a soft reset; with one it only
+// rewords when a message or :edit was given.
+func (e env) squashToOne(branch, fork string, n int, msg string, edit bool) error {
+	switch {
+	case n > 1:
 		keep := msg
 		if keep == "" {
-			keep = e.repo.FullMessage(src)
+			keep = e.repo.FullMessage(branch)
 		}
 		if err := e.repo.ResetSoft(fork); err != nil {
 			return err
@@ -82,40 +138,12 @@ func runCherryPut(c *cli.Context) error {
 		} else if err := e.repo.Commit(keep); err != nil {
 			return err
 		}
-		fmt.Fprintf(e.out, "%s\n", e.okMark(fmt.Sprintf("squashed %d commits into one on %s", len(existing), src)))
-	} else if msg != "" || edit {
+		fmt.Fprintf(e.out, "%s\n", e.okMark(fmt.Sprintf("squashed %d commits into one", n)))
+	case msg != "" || edit:
 		if edit {
-			if err := e.repo.CommitInteractive(true, msg); err != nil {
-				return err
-			}
-		} else if err := e.repo.CommitAmend(msg); err != nil {
-			return err
+			return e.repo.CommitInteractive(true, msg)
 		}
+		return e.repo.CommitAmend(msg)
 	}
-
-	// --- replay that single commit onto `onto` as `as` (linear, no merge commit) ---
-	payload, err := e.repo.RevParse(src)
-	if err != nil {
-		return err
-	}
-	if err := e.repo.BranchCreate(as, onto); err != nil {
-		return err
-	}
-	if err := e.repo.Checkout(as); err != nil {
-		return err
-	}
-	if err := e.step("placing the commit onto "+onto, func() error { return e.repo.CherryPick(payload) }); err != nil {
-		if e.repo.CherryPickInProgress() {
-			fmt.Fprintln(e.errOut, e.badMark("cherry-put hit a conflict placing the commit onto "+onto))
-			fmt.Fprintln(e.errOut, e.colors.Dim("  fix the files, \"git add\" them, then \"tbd continue\","))
-			fmt.Fprintln(e.errOut, e.colors.Dim("  or \"tbd continue :abort\" to undo (leaves "+as+" at "+onto+")"))
-			return cli.ExitError{Code: 1}
-		}
-		return err
-	}
-
-	short, _ := e.repo.Short(as)
-	fmt.Fprintln(e.out, e.okMark("cherry-put "+src+" onto "+onto+" as "+as+" @ "+short+" (one commit, no merge)"))
-	fmt.Fprintln(e.out, e.colors.Dim("  you are on "+as+"; "+src+" keeps the squashed commit"))
 	return nil
 }

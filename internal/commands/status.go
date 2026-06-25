@@ -60,6 +60,14 @@ func runStatus(c *cli.Context) error {
 		fmt.Fprintln(e.out, "  "+col.Yellow("detached HEAD"))
 	}
 
+	// In-progress rebase / cherry-pick.
+	switch {
+	case e.repo.RebaseInProgress():
+		fmt.Fprintln(e.out, "  "+col.Yellow("⚠ rebase in progress")+col.Dim(" - resolve, then \"tbd continue\" (or \"tbd continue :abort\")"))
+	case e.repo.CherryPickInProgress():
+		fmt.Fprintln(e.out, "  "+col.Yellow("⚠ cherry-pick in progress")+col.Dim(" - resolve, then \"tbd continue\" (or \"tbd continue :abort\")"))
+	}
+
 	// Feature branches.
 	if features, _ := e.repo.ListBranches(e.cfg.FeaturePrefix + "*"); len(features) > 0 {
 		fmt.Fprintln(e.out, col.Bold("features"))

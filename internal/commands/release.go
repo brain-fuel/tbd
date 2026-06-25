@@ -17,8 +17,9 @@ func init() {
 			"tbd release list\n\n" +
 			"A release may only be cut from a commit that is on trunk.",
 		Spec: argv.Spec{
-			Named: argv.Opts("from", "strategy"),
-			Flags: argv.Opts("no-push"),
+			Named:       argv.Opts("from", "strategy"),
+			Flags:       argv.Opts("no-push"),
+			Positionals: []string{"subcommand", "version"},
 		},
 		Run: runRelease,
 	})

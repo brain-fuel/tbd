@@ -23,8 +23,9 @@ func init() {
 			"                   every time, so the branch never lives unless leased\n\n" +
 			"Every move is compare-and-swap so two people cannot grab the same slot at once.",
 		Spec: argv.Spec{
-			Named: argv.Opts("to"),
-			Flags: argv.Opts("no-advance", "force"),
+			Named:       argv.Opts("to"),
+			Flags:       argv.Opts("no-advance", "force"),
+			Positionals: []string{"subcommand-or-name", "name"},
 			Hints: map[string]string{
 				"strategy":       "the lease mechanism is set in .tbd.yaml (lease-strategy: none|tag|ephemeral-branch), not on the command line",
 				"lease-strategy": "set lease-strategy in .tbd.yaml, not on the command line",
@@ -121,7 +122,7 @@ func leaseEphemeral(e env, c *cli.Context, name string) error {
 	}
 
 	pushLabel := "pushing lease branch " + name + " to " + e.remote
-	if c.Args.Flag("force") {
+	if c.Args.Flag("force") || e.cfg.BranchPush == "force" {
 		if err := e.step(pushLabel, func() error { return e.repo.PushBranchForce(e.remote, name) }); err != nil {
 			return fmt.Errorf("force-push lease branch %s: %w", name, err)
 		}

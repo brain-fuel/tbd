@@ -5,6 +5,7 @@ import (
 	"io"
 	"sort"
 
+	"goforge.dev/tbd/internal/argv"
 	"goforge.dev/tbd/internal/cli"
 	"goforge.dev/tbd/internal/render"
 )
@@ -18,7 +19,8 @@ func init() {
 			"publishing, conflict recovery, the two-developer deploy lease, releases,\n" +
 			"and finishing. Pass a chapter to jump to one; \"tbd learn topics\" lists them.\n" +
 			"It only prints (runs no git), so it is safe to read anywhere.",
-		Run: runLearn,
+		Spec: argv.Spec{Positionals: []string{"chapter"}},
+		Run:  runLearn,
 	})
 }
 
