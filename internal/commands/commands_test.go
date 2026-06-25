@@ -129,6 +129,25 @@ func TestFeatureStartAndFinishLocal(t *testing.T) {
 	}
 }
 
+// Regression for bug 0002: an invalid feature name must be rejected with a
+// clean tbd error before any network fetch, not surfaced as raw git porcelain.
+func TestFeatureStartRejectsInvalidName(t *testing.T) {
+	dir := repoFixture(t)
+	for _, bad := range []string{"has space", "a..b", "a/"} {
+		ctx, _, _ := newCtx(dir, "feature", "start", bad, ":local")
+		err := featureStart(ctx)
+		if err == nil {
+			t.Fatalf("name %q: expected rejection, got nil", bad)
+		}
+		if !strings.Contains(err.Error(), "not a valid feature name") {
+			t.Fatalf("name %q: want clean validation error, got %v", bad, err)
+		}
+		if r, _ := openRepo(dir); r.Exists("feature/" + bad) {
+			t.Fatalf("name %q: no branch should have been created", bad)
+		}
+	}
+}
+
 func TestFeatureFinishAutoRebaseVisualized(t *testing.T) {
 	dir := repoFixture(t)
 	ctx, _, _ := newCtx(dir, "feature", "start", "x")

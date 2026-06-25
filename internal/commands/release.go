@@ -54,6 +54,19 @@ func releaseCut(c *cli.Context) error {
 		}
 	}
 
+	// Reject versions that would produce an invalid git ref up front, before any
+	// fetch, rather than leaking raw git porcelain mid-operation.
+	if strategy.Has("branch") {
+		if branch := e.cfg.ReleaseBranchPrefix + version; !e.repo.ValidBranchName(branch) {
+			return fmt.Errorf("version %q is not valid for a release (it would make the invalid branch %q)", version, branch)
+		}
+	}
+	if strategy.Has("tag") {
+		if tag := strings.ReplaceAll(e.cfg.ReleaseTagTemplate, "{version}", version); !e.repo.ValidTagName(tag) {
+			return fmt.Errorf("version %q is not valid for a release (it would make the invalid tag %q)", version, tag)
+		}
+	}
+
 	if e.fetch {
 		if err := e.step("fetching "+e.remote, func() error { return e.repo.Fetch(e.remote) }); err != nil {
 			return err

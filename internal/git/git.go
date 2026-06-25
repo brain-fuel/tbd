@@ -91,6 +91,21 @@ func (r *Repo) HasRemote(remote string) bool {
 	return r.runOK("remote", "get-url", remote)
 }
 
+// ValidBranchName reports whether branch is a well-formed git branch name (no
+// spaces, control chars, "..", trailing "/", etc.), per git check-ref-format.
+// branch is the full branch name (e.g. "feature/login"); it is validated as the
+// ref "refs/heads/<branch>" so leading-dash and @{...} components are rejected
+// rather than reinterpreted.
+func (r *Repo) ValidBranchName(branch string) bool {
+	return r.runOK("check-ref-format", "refs/heads/"+branch)
+}
+
+// ValidTagName reports whether tag is a well-formed git tag name, per git
+// check-ref-format (validated as "refs/tags/<tag>").
+func (r *Repo) ValidTagName(tag string) bool {
+	return r.runOK("check-ref-format", "refs/tags/"+tag)
+}
+
 // Fetch updates remote-tracking refs and prunes deleted ones.
 func (r *Repo) Fetch(remote string) error {
 	_, err := r.run("fetch", "--prune", remote)

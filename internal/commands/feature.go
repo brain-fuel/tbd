@@ -55,6 +55,9 @@ func featureStart(c *cli.Context) error {
 		return fmt.Errorf("usage: tbd feature start NAME")
 	}
 	branch := e.cfg.FeaturePrefix + name
+	if !e.repo.ValidBranchName(branch) {
+		return fmt.Errorf("%q is not a valid feature name (it would make the invalid branch %q)", name, branch)
+	}
 	if e.repo.Exists(branch) {
 		return fmt.Errorf("branch %q already exists", branch)
 	}

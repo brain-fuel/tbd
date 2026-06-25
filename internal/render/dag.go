@@ -25,37 +25,28 @@ type RebasePlan struct {
 // Render draws a before/after ASCII graph of the rebase. The "before" picture
 // shows the feature diverged from trunk; the "after" picture shows it replayed
 // on top of trunk head. Colors are applied when enabled.
+//
+// Render uses the plan's FeatLine for both halves, so the "after" SHAs are a
+// projection (the pre-rebase commits). Callers that want the "after" graph to
+// show the real post-rebase SHAs should render the halves separately
+// (RenderBefore, then re-read the new SHAs into the plan, then RenderAfter).
 func (p RebasePlan) Render(c Colors) string {
+	return p.RenderBefore(c) + "\n" + p.RenderAfter(c)
+}
+
+// RenderBefore draws the "before" half: the feature diverged from trunk.
+func (p RebasePlan) RenderBefore(c Colors) string {
 	var b strings.Builder
-
-	node := func(s string) string { return c.Cyan("●") + " " + s }
-	trunkNode := func(cm Commit, label string) string {
-		line := c.Cyan("●") + " " + c.Bold(cm.Short) + "  " + cm.Subject
-		if label != "" {
-			line += "  " + c.Dim(label)
-		}
-		return line
-	}
-	featNode := func(cm Commit, label, glyph string) string {
-		line := glyph + " " + c.Yellow(cm.Short) + "  " + cm.Subject
-		if label != "" {
-			line += "  " + c.Dim(label)
-		}
-		return line
-	}
-	_ = node
-
 	trunkLabel := "(trunk head: " + p.Trunk + ")"
 	featLabel := "← " + p.Feature
 
-	// --- before ---
 	b.WriteString(c.Bold("before") + "\n")
 	for i, cm := range p.TrunkLine {
 		label := ""
 		if i == 0 {
 			label = trunkLabel
 		}
-		b.WriteString("  " + trunkNode(cm, label) + "\n")
+		b.WriteString("  " + trunkNode(c, cm, label) + "\n")
 	}
 	if len(p.TrunkLine) > 0 {
 		b.WriteString("  " + c.Cyan("│") + "\n")
@@ -65,33 +56,57 @@ func (p RebasePlan) Render(c Colors) string {
 		if i == 0 {
 			label = featLabel
 		}
-		b.WriteString("  " + c.Cyan("│") + " " + featNode(cm, label, c.Yellow("○")) + "\n")
+		b.WriteString("  " + c.Cyan("│") + " " + featNode(c, cm, label, c.Yellow("○")) + "\n")
 	}
 	if len(p.FeatLine) > 0 {
 		b.WriteString("  " + c.Cyan("├─╯") + "\n")
 	}
 	b.WriteString("  " + c.Dim("◇") + " " + c.Dim(p.Fork.Short) + "  " + c.Dim(p.Fork.Subject+"  (fork point)") + "\n")
+	return b.String()
+}
 
-	// --- after ---
-	b.WriteString("\n" + c.Bold("after") + "\n")
+// RenderAfter draws the "after" half: the feature replayed on top of trunk head.
+// It draws the replayed nodes from FeatLine, so callers should set FeatLine to
+// the real post-rebase commits before calling it (see visualizeRebase).
+func (p RebasePlan) RenderAfter(c Colors) string {
+	var b strings.Builder
+	trunkLabel := "(trunk head: " + p.Trunk + ")"
+	featLabel := "← " + p.Feature
+
+	b.WriteString(c.Bold("after") + "\n")
 	for i, cm := range p.FeatLine {
 		label := ""
 		if i == 0 {
 			label = featLabel + " (replayed)"
 		}
-		b.WriteString("  " + featNode(cm, label, c.Green("●")) + "\n")
+		b.WriteString("  " + featNode(c, cm, label, c.Green("●")) + "\n")
 	}
 	for i, cm := range p.TrunkLine {
 		label := ""
 		if i == 0 {
 			label = trunkLabel
 		}
-		b.WriteString("  " + trunkNode(cm, label) + "\n")
+		b.WriteString("  " + trunkNode(c, cm, label) + "\n")
 	}
 	if len(p.TrunkLine) > 0 {
 		b.WriteString("  " + c.Cyan("│") + "\n")
 	}
 	b.WriteString("  " + c.Dim("◇") + " " + c.Dim(p.Fork.Short) + "  " + c.Dim(p.Fork.Subject) + "\n")
-
 	return b.String()
+}
+
+func trunkNode(c Colors, cm Commit, label string) string {
+	line := c.Cyan("●") + " " + c.Bold(cm.Short) + "  " + cm.Subject
+	if label != "" {
+		line += "  " + c.Dim(label)
+	}
+	return line
+}
+
+func featNode(c Colors, cm Commit, label, glyph string) string {
+	line := glyph + " " + c.Yellow(cm.Short) + "  " + cm.Subject
+	if label != "" {
+		line += "  " + c.Dim(label)
+	}
+	return line
 }

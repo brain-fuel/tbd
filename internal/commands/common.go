@@ -163,12 +163,20 @@ func (e env) visualizeRebase(feature string) error {
 	}
 	fmt.Fprintln(e.out, e.colors.Bold("Rebasing "+feature+" onto "+e.trunkLocal+":"))
 	fmt.Fprintln(e.out)
-	fmt.Fprint(e.out, plan.Render(e.colors))
+	fmt.Fprint(e.out, plan.RenderBefore(e.colors))
 	fmt.Fprintln(e.out)
 	rebErr := e.step("rebasing "+feature+" onto "+e.trunkLocal, func() error { return e.repo.Rebase(e.trunkRef) })
 	if rebErr != nil {
 		return fmt.Errorf("%w: %v", ErrRebaseConflict, rebErr)
 	}
+	// The rebase rewrote the feature commits onto trunk head, giving them new
+	// SHAs. Re-read them so the "after" graph shows the commits that actually
+	// landed, not the pre-rebase projection.
+	if replayed, err := e.repo.LogRange(e.trunkRef + ".." + feature); err == nil {
+		plan.FeatLine = toRenderCommits(replayed)
+	}
+	fmt.Fprint(e.out, plan.RenderAfter(e.colors))
+	fmt.Fprintln(e.out)
 	fmt.Fprintln(e.out, e.colors.Green("✓ rebased - "+feature+" now sits on top of "+e.trunkLocal))
 	return nil
 }
