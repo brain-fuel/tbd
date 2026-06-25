@@ -11,6 +11,8 @@ and verified with regression tests.
 | 0002 | `feature start` invalid name leaks raw git porcelain (after a fetch)  | low      | fixed, verified |
 | 0003 | `release cut` invalid version leaks raw git porcelain mid-operation   | low/med  | fixed, verified |
 | 0004 | `continue` silently drops `feature finish` after a conflict           | medium   | fixed, verified |
+| 0005 | stale `.git/tbd-resume` hijacks an unrelated `continue` into a finish | high     | fixed, verified |
+| 0006 | `lease` deploys a commit diverged from trunk (breaks core invariant)  | high     | fixed, verified |
 
 Verification baseline for every entry: `go vet ./...`, `go test ./...`, and
 `scripts/e2e.sh` all pass on the fixed tree.

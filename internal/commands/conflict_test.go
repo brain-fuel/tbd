@@ -92,6 +92,65 @@ func TestFinishConflictContinueCompletesFinish(t *testing.T) {
 	}
 }
 
+// Regression for bug 0005: a resume record orphaned by a raw "git rebase
+// --abort" must not hijack a later, unrelated tbd continue on a different branch
+// into a destructive finish.
+func TestContinueIgnoresStaleResumeOnOtherBranch(t *testing.T) {
+	dir := repoFixture(t)
+
+	// 1) feature/aaa finish conflicts -> writes a resume record.
+	ctx, _, _ := newCtx(dir, "feature", "start", "aaa")
+	if err := featureStart(ctx); err != nil {
+		t.Fatal(err)
+	}
+	writeAndCommit(t, dir, "shared.txt", "aaa version")
+	gitRun(t, dir, "switch", "-q", "develop")
+	writeAndCommit(t, dir, "shared.txt", "trunk one")
+	gitRun(t, dir, "switch", "-q", "feature/aaa")
+	if err := featureFinish(mustCtx(dir, "feature", "finish", ":no-push")); err == nil {
+		t.Fatal("expected aaa finish to conflict")
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".git", "tbd-resume")); err != nil {
+		t.Fatalf("expected a resume record: %v", err)
+	}
+
+	// 2) user backs out with raw git -> the resume record is left stale.
+	gitRun(t, dir, "rebase", "--abort")
+
+	// 3) an unrelated plain rebase on feature/bbb conflicts.
+	gitRun(t, dir, "switch", "-q", "develop")
+	bctx, _, _ := newCtx(dir, "feature", "start", "bbb")
+	if err := featureStart(bctx); err != nil {
+		t.Fatal(err)
+	}
+	writeAndCommit(t, dir, "shared.txt", "bbb version")
+	gitRun(t, dir, "switch", "-q", "develop")
+	writeAndCommit(t, dir, "shared.txt", "trunk two")
+	gitRun(t, dir, "switch", "-q", "feature/bbb")
+	if err := runRebase(mustCtx(dir, "rebase")); err == nil {
+		t.Fatal("expected bbb rebase to conflict")
+	}
+
+	// 4) resolve + continue: must finish only the rebase, NOT a stale finish.
+	trunkBefore := revParse(t, dir, "develop")
+	writeFile(t, dir, "shared.txt", "resolved")
+	gitRun(t, dir, "add", "shared.txt")
+	if err := runContinue(mustCtx(dir, "continue")); err != nil {
+		t.Fatalf("continue: %v", err)
+	}
+
+	r, _ := openRepo(dir)
+	if !r.Exists("feature/bbb") {
+		t.Fatal("feature/bbb must NOT be deleted by a stale resume record")
+	}
+	if got := revParse(t, dir, "develop"); got != trunkBefore {
+		t.Fatal("develop must NOT be fast-forwarded by a stale resume record")
+	}
+	if cur, _ := r.CurrentBranch(); cur != "feature/bbb" {
+		t.Fatalf("expected to stay on feature/bbb, got %q", cur)
+	}
+}
+
 func TestFinishConflictAbortOnFlag(t *testing.T) {
 	dir := repoFixture(t)
 	setupConflict(t, dir)

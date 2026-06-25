@@ -87,21 +87,25 @@ func runContinue(c *cli.Context) error {
 
 	// If a higher-level operation (feature finish) was interrupted by this
 	// rebase, replay it now so the integration actually completes instead of
-	// leaving the branch rebased-but-unfinished.
+	// leaving the branch rebased-but-unfinished. The record is bound to its
+	// branch: replay only while that branch is checked out, so a record orphaned
+	// by a raw "git rebase --abort" cannot hijack an unrelated continue.
 	if rebasing {
-		if rargs, ok := e.readResume(); ok {
+		if rbranch, rargs, ok := e.readResume(); ok {
 			e.clearResume()
-			fmt.Fprintln(e.out, e.colors.Bold("resuming: tbd "+strings.Join(rargs, " ")))
-			rctx := &cli.Context{
-				Args:   cli.Parse(rargs),
-				Raw:    rargs,
-				Stdin:  c.Stdin,
-				Stdout: c.Stdout,
-				Stderr: c.Stderr,
-				Dir:    c.Dir,
-				IsTTY:  c.IsTTY,
+			if rbranch == br {
+				fmt.Fprintln(e.out, e.colors.Bold("resuming: tbd "+strings.Join(rargs, " ")))
+				rctx := &cli.Context{
+					Args:   cli.Parse(rargs),
+					Raw:    rargs,
+					Stdin:  c.Stdin,
+					Stdout: c.Stdout,
+					Stderr: c.Stderr,
+					Dir:    c.Dir,
+					IsTTY:  c.IsTTY,
+				}
+				return cli.Dispatch(rctx)
 			}
-			return cli.Dispatch(rctx)
 		}
 	}
 	return nil

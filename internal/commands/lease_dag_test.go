@@ -164,3 +164,55 @@ func TestLeaseNoOpWhenCurrent(t *testing.T) {
 		t.Fatalf("expected no-op message, got: %s", out.String())
 	}
 }
+
+// makeDivergent leaves dir checked out on feature/rogue, a branch whose tip has
+// diverged from develop (trunk head is NOT an ancestor of it).
+func makeDivergent(t *testing.T, dir string) {
+	t.Helper()
+	gitRun(t, dir, "switch", "-q", "-c", "rogue", "develop")
+	writeAndCommit(t, dir, "rogue.txt", "rogue work")
+	gitRun(t, dir, "switch", "-q", "develop")
+	writeAndCommit(t, dir, "trunk.txt", "trunk advances past fork")
+	gitRun(t, dir, "switch", "-q", "rogue")
+	r, _ := openRepo(dir)
+	if th, _ := r.RevParse("develop"); r.IsAncestor(th, revOf(t, dir, "rogue")) {
+		t.Fatal("setup error: rogue should be divergent from trunk")
+	}
+}
+
+// Regression for bug 0006: a deploy lease must not be moved onto work that has
+// diverged from trunk (tbd's central invariant for any deploy).
+func TestLeaseRefusesDivergentDeploy(t *testing.T) {
+	dir := repoFixture(t)
+	// Bootstrap the lease on trunk head first.
+	if err := leaseAcquire(mustCtx(dir, "lease", "dev-deploy"), "dev-deploy"); err != nil {
+		t.Fatal(err)
+	}
+	at := tagCommit(t, dir, "dev-deploy")
+
+	makeDivergent(t, dir)
+
+	err := leaseAcquire(mustCtx(dir, "lease", "dev-deploy"), "dev-deploy")
+	if err == nil || !strings.Contains(err.Error(), "diverged from trunk") {
+		t.Fatalf("expected a divergence refusal, got %v", err)
+	}
+	if got := tagCommit(t, dir, "dev-deploy"); got != at {
+		t.Fatalf("lease must stay put on refusal: moved from %s to %s", at, got)
+	}
+}
+
+// :force overrides the divergence guard (explicit "I know what I am doing").
+func TestLeaseForceDeploysDivergent(t *testing.T) {
+	dir := repoFixture(t)
+	if err := leaseAcquire(mustCtx(dir, "lease", "dev-deploy"), "dev-deploy"); err != nil {
+		t.Fatal(err)
+	}
+	makeDivergent(t, dir)
+
+	if err := leaseAcquire(mustCtx(dir, "lease", "dev-deploy", ":force"), "dev-deploy"); err != nil {
+		t.Fatalf("force deploy should succeed: %v", err)
+	}
+	if got := tagCommit(t, dir, "dev-deploy"); got != revOf(t, dir, "rogue") {
+		t.Fatal("force deploy should have moved the lease onto rogue")
+	}
+}

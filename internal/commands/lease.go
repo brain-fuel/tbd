@@ -98,6 +98,11 @@ func leaseEphemeral(e env, c *cli.Context, name string) error {
 		return err
 	}
 
+	// Central invariant: never deploy work that has diverged from trunk.
+	if err := e.ensureOnTrunk(c, name, wHead); err != nil {
+		return err
+	}
+
 	// The remote value we are taking from (also the compare-and-swap baseline).
 	expected := ""
 	if e.remote != "" {
@@ -199,6 +204,11 @@ func leaseTag(e env, c *cli.Context, name string) error {
 		dest, _ = e.repo.RevParse(e.trunkRef)
 	default:
 		dest = wHead
+	}
+
+	// Central invariant: never deploy work that has diverged from trunk.
+	if err := e.ensureOnTrunk(c, name, dest); err != nil {
+		return err
 	}
 
 	switch classifyLease(e, target, dest, working, wHead) {

@@ -199,12 +199,32 @@ func handleRebaseConflict(e env, c *cli.Context, branch string, rerr error, resu
 		return cli.ExitError{Code: 1}
 	}
 	if len(resumeArgs) > 0 {
-		_ = e.writeResume(resumeArgs)
+		_ = e.writeResume(branch, resumeArgs)
 	}
 	fmt.Fprintln(e.errOut, e.badMark("rebase of "+branch+" hit a conflict"))
 	fmt.Fprintln(e.errOut, e.colors.Dim("  fix the files, \"git add\" them, then run \"tbd continue\","))
 	fmt.Fprintln(e.errOut, e.colors.Dim("  or re-run with :abort-on-conflict to back out"))
 	return cli.ExitError{Code: 1}
+}
+
+// ensureOnTrunk enforces tbd's central invariant for a deploy: trunk head must
+// be an ancestor of dest. It is the guard the lease commands use so a deploy
+// slot can never be moved onto work that has diverged from trunk. :force
+// overrides it (same "I know what I am doing" semantics as the lease push flag).
+func (e env) ensureOnTrunk(c *cli.Context, what, dest string) error {
+	if c.Args.Flag("force") {
+		return nil
+	}
+	trunkHead, err := e.repo.RevParse(e.trunkRef)
+	if err != nil {
+		return err
+	}
+	if e.repo.IsAncestor(trunkHead, dest) {
+		return nil
+	}
+	return fmt.Errorf("refusing to deploy %s onto work that has diverged from trunk %s\n"+
+		"  (trunk head is not an ancestor of %s); rebase onto trunk first (tbd feature sync), or pass :force",
+		what, e.trunkLocal, shortOf(e.repo, dest))
 }
 
 func toRenderCommits(in []git.Commit) []render.Commit {
