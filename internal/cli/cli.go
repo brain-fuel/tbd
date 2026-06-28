@@ -86,6 +86,7 @@ func Commands() []*Command {
 // Run parses argv, builds a Context, and dispatches to the matching command.
 // It returns a process exit code.
 func Run(rawArgs []string) int {
+	rawArgs = normalizeArgs(rawArgs)
 	args := Parse(rawArgs)
 	dir, _ := os.Getwd()
 	ctx := &Context{Args: args, Raw: rawArgs, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, Dir: dir, IsTTY: isTerminal(os.Stdout)}
@@ -113,6 +114,24 @@ func Run(rawArgs []string) int {
 		return 1
 	}
 	return 0
+}
+
+func normalizeArgs(rawArgs []string) []string {
+	if len(rawArgs) == 0 {
+		return rawArgs
+	}
+	if len(rawArgs) == 1 {
+		switch rawArgs[0] {
+		case "-h", "--help":
+			return nil
+		case "-v", "--version":
+			return []string{"version"}
+		}
+	}
+	if len(rawArgs) == 2 && (rawArgs[1] == "-h" || rawArgs[1] == "--help") {
+		return []string{"help", rawArgs[0]}
+	}
+	return rawArgs
 }
 
 // Dispatch validates and runs the command named by ctx.Args.Command using the

@@ -34,3 +34,31 @@ func TestParseValueWithColon(t *testing.T) {
 		t.Fatalf("value with colon mishandled: %q", a.GetOr("to", ""))
 	}
 }
+
+func TestNormalizeArgs(t *testing.T) {
+	cases := []struct {
+		name string
+		in   []string
+		want []string
+	}{
+		{name: "help short", in: []string{"-h"}, want: nil},
+		{name: "help long", in: []string{"--help"}, want: nil},
+		{name: "version short", in: []string{"-v"}, want: []string{"version"}},
+		{name: "version long", in: []string{"--version"}, want: []string{"version"}},
+		{name: "command help", in: []string{"feature", "--help"}, want: []string{"help", "feature"}},
+		{name: "unchanged", in: []string{"feature", "start", "login"}, want: []string{"feature", "start", "login"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := normalizeArgs(tc.in)
+			if len(got) != len(tc.want) {
+				t.Fatalf("normalizeArgs(%v) = %v, want %v", tc.in, got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Fatalf("normalizeArgs(%v) = %v, want %v", tc.in, got, tc.want)
+				}
+			}
+		})
+	}
+}
