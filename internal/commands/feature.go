@@ -109,7 +109,7 @@ func featureSync(c *cli.Context) error {
 		return err
 	}
 
-	if err := e.visualizeRebase(branch); err != nil {
+	if err := e.visualizeRebase(branch, e.trunkRef, e.trunkLocal); err != nil {
 		return handleRebaseConflict(e, c, branch, err)
 	}
 	return nil
@@ -156,7 +156,7 @@ func featurePush(c *cli.Context) error {
 		if !e.cfg.AutoRebaseEnabled() {
 			return refuseDiverged(e, branch)
 		}
-		if rerr := e.visualizeRebase(branch); rerr != nil {
+		if rerr := e.visualizeRebase(branch, e.trunkRef, e.trunkLocal); rerr != nil {
 			return handleRebaseConflict(e, c, branch, rerr)
 		}
 	case errors.Is(err, invariant.ErrDiverged):
@@ -214,7 +214,7 @@ func featureFinish(c *cli.Context) error {
 		// Record the finish so that, if the rebase conflicts, tbd continue can
 		// replay it and complete the integration (ff trunk, push, delete) rather
 		// than leaving the branch rebased-but-not-finished.
-		if rerr := e.visualizeRebase(branch); rerr != nil {
+		if rerr := e.visualizeRebase(branch, e.trunkRef, e.trunkLocal); rerr != nil {
 			return handleRebaseConflict(e, c, branch, rerr, c.Raw...)
 		}
 	case errors.Is(err, invariant.ErrDiverged):

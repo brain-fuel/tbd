@@ -127,21 +127,21 @@ func (e env) ensureLocalTrunk() error {
 	return invariant.ErrNoTrunk
 }
 
-// rebasePlan builds the before/after picture for replaying feature onto trunkRef.
-func (e env) rebasePlan(feature string) (render.RebasePlan, error) {
-	fork, err := e.repo.MergeBase(e.trunkRef, feature)
+// rebasePlan builds the before/after picture for replaying feature onto targetRef.
+func (e env) rebasePlan(feature, targetRef, targetLabel string) (render.RebasePlan, error) {
+	fork, err := e.repo.MergeBase(targetRef, feature)
 	if err != nil {
 		return render.RebasePlan{}, err
 	}
 	forkShort, _ := e.repo.Short(fork)
 	forkSubj := e.repo.Subject(fork)
 
-	trunkCommits, _ := e.repo.LogRange(fork + ".." + e.trunkRef)
+	trunkCommits, _ := e.repo.LogRange(fork + ".." + targetRef)
 	featCommits, _ := e.repo.LogRange(fork + ".." + feature)
 
 	return render.RebasePlan{
 		Feature:   feature,
-		Trunk:     e.trunkLocal,
+		Trunk:     targetLabel,
 		Fork:      render.Commit{Short: forkShort, Subject: forkSubj},
 		TrunkLine: toRenderCommits(trunkCommits),
 		FeatLine:  toRenderCommits(featCommits),
@@ -152,32 +152,32 @@ func (e env) rebasePlan(feature string) (render.RebasePlan, error) {
 // decide whether to leave it in progress or abort.
 var ErrRebaseConflict = errors.New("rebase stopped on a conflict")
 
-// visualizeRebase prints the rebase plan, then performs the rebase on the
-// currently checked-out branch. The feature must already be checked out. A
-// conflict is returned wrapped in ErrRebaseConflict (the rebase is left in
-// progress for the caller to resolve or abort).
-func (e env) visualizeRebase(feature string) error {
-	plan, err := e.rebasePlan(feature)
+// visualizeRebase prints the rebase plan, then rebases the checked-out feature
+// onto targetRef (labeled targetLabel in the output). The feature must already
+// be checked out. A conflict is returned wrapped in ErrRebaseConflict (the
+// rebase is left in progress for the caller to resolve or abort).
+func (e env) visualizeRebase(feature, targetRef, targetLabel string) error {
+	plan, err := e.rebasePlan(feature, targetRef, targetLabel)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(e.out, e.colors.Bold("Rebasing "+feature+" onto "+e.trunkLocal+":"))
+	fmt.Fprintln(e.out, e.colors.Bold("Rebasing "+feature+" onto "+targetLabel+":"))
 	fmt.Fprintln(e.out)
 	fmt.Fprint(e.out, plan.RenderBefore(e.colors))
 	fmt.Fprintln(e.out)
-	rebErr := e.step("rebasing "+feature+" onto "+e.trunkLocal, func() error { return e.repo.Rebase(e.trunkRef) })
+	rebErr := e.step("rebasing "+feature+" onto "+targetLabel, func() error { return e.repo.Rebase(targetRef) })
 	if rebErr != nil {
 		return fmt.Errorf("%w: %v", ErrRebaseConflict, rebErr)
 	}
-	// The rebase rewrote the feature commits onto trunk head, giving them new
+	// The rebase rewrote the feature commits onto the target head, giving them new
 	// SHAs. Re-read them so the "after" graph shows the commits that actually
 	// landed, not the pre-rebase projection.
-	if replayed, err := e.repo.LogRange(e.trunkRef + ".." + feature); err == nil {
+	if replayed, err := e.repo.LogRange(targetRef + ".." + feature); err == nil {
 		plan.FeatLine = toRenderCommits(replayed)
 	}
 	fmt.Fprint(e.out, plan.RenderAfter(e.colors))
 	fmt.Fprintln(e.out)
-	fmt.Fprintln(e.out, e.colors.Green("✓ rebased - "+feature+" now sits on top of "+e.trunkLocal))
+	fmt.Fprintln(e.out, e.colors.Green("✓ rebased - "+feature+" now sits on top of "+targetLabel))
 	return nil
 }
 

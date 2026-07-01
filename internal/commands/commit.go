@@ -121,7 +121,7 @@ func finalizeOnTrunk(e env, c *cli.Context, branch string) error {
 		fmt.Fprintln(e.out, e.okMark(branch+" @ "+head+" sits on top of "+e.trunkLocal))
 		return nil
 	case errors.Is(err, invariant.ErrDiverged):
-		if rerr := e.visualizeRebase(branch); rerr != nil {
+		if rerr := e.visualizeRebase(branch, e.trunkRef, e.trunkLocal); rerr != nil {
 			return handleRebaseConflict(e, c, branch, rerr)
 		}
 		return nil
