@@ -69,6 +69,16 @@ func TestSqrOntoMissingBranch(t *testing.T) {
 	}
 }
 
+func TestSqrOntoMustDifferFromCurrentBranch(t *testing.T) {
+	dir := repoFixture(t)
+	gitRun(t, dir, "switch", "-q", "-c", "work", "develop")
+	writeAndCommit(t, dir, "w.txt", "w")
+	err := runSqr(mustCtx(dir, "sqr", "onto:work"))
+	if err == nil || !strings.Contains(err.Error(), "must differ from the current branch") {
+		t.Fatalf("expected must-differ error, got %v", err)
+	}
+}
+
 // Regression for bug 0001: the "after" graph must show the real post-rebase SHA
 // of the replayed commit, not the stale pre-rebase one.
 func TestSqrAfterGraphShowsPostRebaseSha(t *testing.T) {
