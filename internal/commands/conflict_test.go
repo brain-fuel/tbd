@@ -127,7 +127,7 @@ func TestContinueIgnoresStaleResumeOnOtherBranch(t *testing.T) {
 	gitRun(t, dir, "switch", "-q", "develop")
 	writeAndCommit(t, dir, "shared.txt", "trunk two")
 	gitRun(t, dir, "switch", "-q", "feature/bbb")
-	if err := runRebase(mustCtx(dir, "rebase")); err == nil {
+	if err := runSqr(mustCtx(dir, "sqr")); err == nil {
 		t.Fatal("expected bbb rebase to conflict")
 	}
 
