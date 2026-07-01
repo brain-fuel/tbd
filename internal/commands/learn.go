@@ -217,7 +217,7 @@ func chFinish(l lesson) {
 	l.p("push for review, lease to deploy, release, finish. The invariant holds the")
 	l.p("whole way through.")
 	l.blank()
-	l.p("Adopting a \"normal\" multi-commit branch? " + l.c.Green("tbd rebase") + " squashes it to one")
+	l.p("Adopting a \"normal\" multi-commit branch? " + l.c.Green("tbd sqr") + " squashes it to one")
 	l.p("commit on trunk. To squash your work onto a different branch as a new branch:")
 	l.cmd("tbd cherry-put onto:some-branch as:my-work")
 	l.blank()

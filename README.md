@@ -75,7 +75,7 @@ branch-push: with-lease           # "with-lease" (CAS) | "force"  (feature push,
 | `status` | Trunk, current branch, features, leases, releases | read-only |
 | `commit` | Collapse the feature to ONE commit, fetch trunk, rebase onto it | single commit, always rebased |
 | `continue` | Resume a tbd rebase after resolving conflicts (`:abort` to back out) | - |
-| `rebase` | Squash the current branch to one commit and rebase it onto trunk | single commit on trunk |
+| `sqr [onto:BRANCH]` | Squash the current branch to one commit and rebase it onto trunk (or onto BRANCH) | single commit on trunk |
 | `cherry-put` | Squash the current branch and replay it as one linear commit onto another branch (`onto:`) as a new branch (`as:`); `:keep-source` leaves your branch untouched | single commit on `onto:`, no merge |
 | `feature start NAME` | Branch `feature/NAME` from trunk head | start point is trunk head |
 | `feature sync [BR]` | Rebase a feature onto the latest trunk (the explicit fixer) | trunk head ⊑ feature after |
