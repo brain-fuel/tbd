@@ -4,13 +4,9 @@
 package main
 
 import (
-	"os"
-
-	"goforge.dev/tbd/internal/cli"
-	// Registers all subcommands via their init() functions.
-	_ "goforge.dev/tbd/internal/commands"
+	"goforge.dev/tbd/internal/app"
 )
 
 func main() {
-	os.Exit(cli.Run(os.Args[1:]))
+	app.Main()
 }

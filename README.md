@@ -1,15 +1,10 @@
-# tbd - trunk-based development over git
+# tbd
 
-`tbd` is a small, opinionated wrapper over git's DAG. It exists to enforce one
-invariant on every mutating operation:
+`tbd` is a workflow-aware Git CLI for trunk-based delivery. Version 2 uses
+Cobra flags only; the old colon argument syntax is intentionally gone.
 
-> **The head of the trunk must be an ancestor of whatever you operate on or produce.**
-
-That single rule (`git merge-base --is-ancestor`) is what keeps trunk-based
-development safe: you never integrate, release, or deploy work that has silently
-diverged from trunk. When your branch *has* diverged, `tbd` rebases it onto the
-latest trunk for you and **shows you the move** as a before/after graph - nothing
-happens silently.
+The core rule is still simple: deployable work must be rebased onto the current
+configured trunk before it moves through deploy or release refs.
 
 ## Install
 
@@ -17,213 +12,206 @@ happens silently.
 go build -o tbd ./cmd/tbd
 ```
 
-## Quick start
+## Quick Start
 
 ```sh
-tbd learn                      # narrated tour of the whole workflow
-tbd init                       # write .tbd.yaml (defaults below)
-tbd feature start login        # branch feature/login off the latest trunk
-# ...commit work...
-tbd feature finish             # rebase onto trunk, fast-forward trunk, push, clean up
-tbd release cut 1.0.0          # cut a release from a trunk commit
-tbd lease dev-deploy           # move the deploy tag to your work (one taker wins)
-tbd status                     # dashboard of trunk, branches, leases, releases
-tbd guard                      # exit 0/1: does the invariant hold? (for CI)
+tbd init --yes
+tbd feature --id JIRA-123 --desc "Add login"
+# edit files
+tbd commit
+tbd lease dev-deploy
+tbd release rc 1.2.3
+tbd release complete 1.2.3
 ```
 
-Arguments use colon syntax: `key:value` for named args, `:flag` for booleans
-(e.g. `tbd feature finish :no-push`, `tbd release cut 1.0.0 strategy:branch,tag`).
+`tbd commit` stages all changes, keeps the branch to one commit, fast-forwards
+the local trunk from the remote when possible, rebases onto trunk, and amends tbd
+workflow metadata into that same commit.
 
-### Global options
+For generic Git graph surgery:
 
-These work on every command:
+```sh
+tbd sr
+tbd sr another-branch
+tbd squash-rebase
+```
 
-- `color-mode:none` / `color-mode:always`: control ANSI color in output (the
-  graphs, status, `✓`/`✗`). Omitted, color is on for a terminal and off when
-  piped. The `NO_COLOR` environment variable (when set to a non-empty value)
-  also disables color; an explicit `color-mode:always` overrides it.
-- `:local`: skip the network entirely (no fetch or push).
-- `:no-fetch`: do not fetch before acting.
+## Defaults
 
-tbd telegraphs each slow procedure (fetch, push, rebase) on stderr as it runs,
-with an animated spinner on a terminal and a plain `... <label>` line when piped
-or in CI, so it is always clear what tbd is doing. stdout stays clean for piping.
-
-## Configuration - `.tbd.yaml`
+`tbd init --yes` writes `.tbd.yaml` with these defaults:
 
 ```yaml
-trunk-name: develop
-feature-prefix: feature/
-release-strategy: branch          # "branch" | "tag" | [branch, tag]
-release-branch-prefix: release/
-release-tag-template: v{version}
-lease-strategy: tag               # none | tag | ephemeral-branch
-lease-tags: [dev-deploy, uat1-deploy, uat2-deploy]   # used when lease-strategy: tag
-lease-branches: [deploy-now]      # used when lease-strategy: ephemeral-branch
+version: 2
+trunk-name: main
 remote: origin
-auto-rebase: true                 # false = refuse on divergence instead of rebasing
-tag-push: with-lease              # "with-lease" (CAS) | "force"  (lease tags)
-branch-push: with-lease           # "with-lease" (CAS) | "force"  (feature push, ephemeral lease)
+auto-rebase: true
+rerere: true
+branches:
+  feature-template: feature/{id}-{slug}
+  fix-template: bugfix/{id-}{slug}
+  collab-suffix: -collab
+  stack-suffix: -stack
+release:
+  strategy: tag
+  branch-prefix: release/
+  tag-template: v{semver}
+  rc-tag-template: rc-{semver}
+  bad-tag-template: bad-{timestamp}
+  default-revert-bump: patch
+  delete-remote-rc-on-uat-reset: true
+deploy:
+  strategy: tag
+  refs: [dev-deploy, test-deploy, prod-deploy]
+push:
+  branch: force-with-lease
+  tag: force-with-lease
+locks:
+  ref-prefix: refs/tbd/locks/
+  default-ttl: 3h
 ```
 
-## Commands
-
-| Command | What it does | Invariant enforced |
-|---|---|---|
-| `learn` | Guided walkthrough of the whole workflow (`tbd learn topics` to jump) | - |
-| `init` | Write `.tbd.yaml`; `:create-trunk` makes the trunk if missing | - |
-| `status` | Trunk, current branch, features, leases, releases | read-only |
-| `commit` | Collapse the feature to ONE commit, fetch trunk, rebase onto it | single commit, always rebased |
-| `continue` | Resume a tbd rebase after resolving conflicts (`:abort` to back out) | - |
-| `sqr [onto:BRANCH]` | Squash the current branch to one commit and rebase it onto trunk (or onto BRANCH) | single commit on trunk |
-| `cherry-put` | Squash the current branch and replay it as one linear commit onto another branch (`onto:`) as a new branch (`as:`); `:keep-source` leaves your branch untouched | single commit on `onto:`, no merge |
-| `feature start NAME` | Branch `feature/NAME` from trunk head | start point is trunk head |
-| `feature sync [BR]` | Rebase a feature onto the latest trunk (the explicit fixer) | trunk head ⊑ feature after |
-| `feature push [BR]` | Publish the feature branch (force-with-lease, for PR/CI) | rebased onto trunk before publishing |
-| `feature finish [BR]` | Rebase (auto), fast-forward trunk, push, delete branch | trunk head ⊑ feature; trunk only fast-forwards |
-| `feature list` | Feature branches with ahead/behind + status | read-only |
-| `release cut VERSION` | Branch and/or tag per `release-strategy` | `from` must be on trunk |
-| `release list` | Release points + on-trunk marker | read-only |
-| `lease NAME` | Move deploy tag `NAME` per the DAG rules below (CAS) | single winner per race |
-| `lease status` | Each deploy tag: position + holder | read-only |
-| `guard` / `check` | Report the invariant; exit 0 if it holds, 1 otherwise | read-only |
-| `config list` / `config get KEY` | Show resolved configuration | read-only |
-| `version` | Print the tbd version | - |
-
-### Divergence and auto-rebase
-
-When trunk has moved ahead of your feature, `feature finish` (and `feature sync`)
-rebase it onto the latest trunk and print the move:
-
-```
-Rebasing feature/widget onto develop:
-
-before
-  ● 2324c61  trunk advances  (trunk head: develop)
-  │
-  │ ○ b07c5ca  widget work  ← feature/widget
-  ├─╯
-  ◇ 01ebddf  login work  (fork point)
-
-after
-  ● b07c5ca  widget work  ← feature/widget (replayed)
-  ● 2324c61  trunk advances  (trunk head: develop)
-  │
-  ◇ 01ebddf  login work
-```
-
-Set `auto-rebase: false` to refuse instead, with a hint to run `tbd feature sync`.
-
-### Single-commit features: `tbd commit`
-
-`tbd commit` enforces a one-commit-per-feature discipline. Every invocation, no
-exceptions, does the same three things:
-
-1. Stages all changes and collapses the feature to exactly **one** commit
-   (creates it, amends it, or squashes several into one).
-2. Fetches the trunk.
-3. Rebases that single commit onto the latest trunk head.
+Use branch mode when a CD system only watches branches:
 
 ```sh
-tbd feature start login
-# ...edit...
-tbd commit message:"add login form"   # first commit (message required)
-# ...edit more...
-tbd commit                            # amends the same commit, re-rebases onto trunk
+tbd init --yes \
+  --release-strategy branch \
+  --deploy-strategy branch \
+  --deploy-ref deploy-dev \
+  --deploy-ref deploy-uat \
+  --deploy-ref prod-deploy
 ```
 
-The result is invariant: after any `tbd commit`, the feature is one commit
-sitting directly on top of trunk. A message is required only for the first
-commit; later ones keep it unless you pass a new `message:`/`m:`, or use `:edit`
-to open your editor on the message (reword on the first commit, an amend, or a
-squash; it still collapses-to-one and rebases).
+In branch release mode, deploy branches are mutable lease refs, but
+`release/<semver>` branches are immutable. A successful release creates
+`v<semver>` and fast-forwards the configured trunk branch to the release commit.
 
-If the rebase in step 3 conflicts, your commit is already made (work is never
-lost); the rebase stops with the file left in conflict. Fix it, `git add` the
-file, and run `tbd continue` (which resumes without opening an editor), or
-`tbd commit :abort-on-conflict` to back the rebase out and stay as you were.
-The same `tbd continue` resolves conflicts from `feature sync`, `finish`, and
-`push` too.
+## Workflows
 
-`commit` keeps everything local. To publish the branch for a pull request or CI,
-use `tbd feature push` - it rebases onto trunk, then force-with-lease pushes
-(force because `commit` rewrites history; the lease never clobbers a teammate's
-push). `tbd feature finish` is different: it folds the feature into trunk and
-deletes the branch, so reach for `push` when you want the branch reviewed first
-and `finish` when you are ready to integrate.
+Feature:
 
-### Leases (deploy slots), decided at the DAG level
+```sh
+tbd feature --id JIRA-123 --desc "Add login"
+```
 
-A *lease* is the deploy tag your CD pipeline watches (e.g. `dev-deploy`,
-`uat-deploy`). `tbd lease <name>` moves it to the commit you want deployed,
-choosing the move from where the tag points now (T) relative to your working
-branch (W):
+Fix:
 
-| T (where the tag is now) | What `tbd lease` does |
-|---|---|
-| unset | bootstrap to **trunk head** |
-| already at the destination | no-op |
-| on W, or in W's reflog (your earlier or pre-amend commit) | **advance** to W's tip (`:no-advance` to leave it) |
-| on someone else's branch | **take** it to W's tip |
+```sh
+tbd fix --desc "Patch production login"
+tbd fix --id JIRA-456 --desc "Patch production login"
+```
 
-The "on W's reflog" rule is what makes it survive `tbd commit`: after an amend or
-rebase rewrites your commit, the old deployed commit is orphaned but still in
-your branch's reflog, so it's recognized as yours and advanced rather than
-mistaken for a stranger's. (Reflog is local and expires; an aged-out orphan
-degrades to a "take", same destination.)
+Collab creates one aggregate branch and tracks each feature in metadata and
+release notes:
 
-**What git actually guarantees.** There is no native lock. The one
-mutual-exclusion primitive is compare-and-swap on a ref
-(`git push --force-with-lease`), which tbd uses for every move: two people cannot
-grab the same slot in the same race window, and the **holder** is recorded in the
-annotated tag's tagger field. What a lease is **not**: a time-held lock across a
-CD run. Git cannot enforce that; tbd does not pretend otherwise. (`:force` or
-`tag-push: force` overrides the CAS check.)
+```sh
+tbd collab --id JIRA-1 --desc "Feature one" --id JIRA-2 --desc "Feature two"
+tbd collab add --id JIRA-3 --desc "Feature three"
+```
 
-#### Strategy: `ephemeral-branch`
+Stack creates one branch with at most one commit per issue. Touching an item
+moves it to the top of the stack metadata, and `tbd stack remove --id JIRA-2`
+removes it and rebuilds from remaining recorded commits where possible.
 
-Set `lease-strategy: ephemeral-branch` and list `lease-branches` instead of
-`lease-tags`. The two strategies share no logic. Here a deploy slot is a
-**branch** that exists ONLY while leased: every `tbd lease <name>` blows the
-branch away and recreates it at your working branch's tip (CAS-guarded, `:force`
-to override), so it never lingers between leases. There is no advance/no-op
-gating; each lease is a fresh remake. Any tbd activity that fetches also mirrors
-the remote lease-branches into local refs, so your view tracks reality. Run
-`tbd lease <name>` from your feature branch, not from the lease branch itself.
-`lease-strategy: none` disables leasing entirely.
+```sh
+tbd stack --id JIRA-1 --desc "Feature one" --id JIRA-2 --desc "Feature two"
+tbd stack add --id JIRA-1 --desc "Feature one"
+tbd stack remove --id JIRA-2
+```
+
+`git rerere.enabled=true` is set by default during init because stack/collab
+rebases deliberately reuse conflict resolutions.
+
+## Releases
+
+Tag strategy:
+
+```sh
+tbd release rc 1.2.3
+tbd release complete 1.2.3
+```
+
+`release rc` deletes/replaces `rc-<semver>` locally and remotely. The RC tag only
+exists when the candidate is rebased onto the current trunk and marked good.
+
+Branch strategy:
+
+```sh
+tbd release prepare 1.2.3
+tbd release complete 1.2.3
+```
+
+`release prepare` creates immutable `release/<semver>`. `release complete` tags
+`v<semver>` and fast-forwards trunk to that release commit. Numbers only go up;
+bad commits are marked with `tbd tag <ref> bad`, which creates `bad-<timestamp>`.
+
+Release metadata is written to `RELEASE.json` and rendered to `RELEASE.md`.
+Draft notes can move with the same topology as the commits while a feature set is
+still being worked.
+
+## Reverts
+
+```sh
+tbd revert --ref <sha-or-tag-or-version> --why "remove feature"
+tbd revert --all-past v1.2.3 --why "rollback to last good production"
+tbd revert --ref JIRA-123 --minor --why "remove larger feature"
+```
+
+Before a production/RC tag exists, feature removal does not force a semver bump.
+After an RC or production tag exists, revert metadata defaults to a patch bump
+unless `--minor` or `--major` is passed.
+
+## Deploy Leases
+
+```sh
+tbd lease dev-deploy
+tbd lease deploy-uat --to HEAD
+```
+
+Deploy refs are tags or branches depending on `deploy.strategy`, but the
+semantics are identical: the ref is moved by compare-and-swap where a remote is
+available. Do not work while checked out on deploy branches; `tbd` refuses those
+operations.
+
+## Locks
+
+```sh
+tbd lock acquire uat
+tbd lock status uat
+tbd lock acquire uat --steal
+tbd lock release uat
+```
+
+Locks are stored under `refs/tbd/locks/<name>` as metadata commits and pushed
+with CAS. The default TTL is three hours. Expired locks still require `--steal`
+so taking ownership is explicit.
+
+See [docs/locks.md](docs/locks.md) for raw Git recovery commands.
+
+## Visualization
+
+Terminal:
+
+```sh
+tbd graph
+tbd graph --limit 200
+```
+
+Browser:
+
+```sh
+tbd serve --addr 127.0.0.1:8087
+```
+
+The server fetches on an interval, renders the repository DAG, and exposes a
+command console that executes `tbd` commands in the repository as a local daemon.
 
 ## Development
 
 ```sh
-go test ./...        # unit, data-driven, and property tests
-bash scripts/e2e.sh  # full flow against a throwaway origin + two clones
+go test ./...
 ```
 
-Tests come in three flavors:
+The legacy `internal/commands`, `internal/cli`, and colon parser packages remain
+in the repository for regression coverage and reusable Git behavior. The binary
+entrypoint is the Cobra V2 app in `internal/app`.
 
-- **Data-driven / table tests** - e.g. `feature finish` preconditions
-  (`TestFeatureFinishGuards`) and config parsing.
-- **Property tests** (`pgregory.net/rapid`) over randomly generated git
-  histories: the ahead/behind/diverged model matches the constructed shape, a
-  rebase always restores the invariant, and any valid config survives a
-  Save→Load round-trip.
-- **End-to-end** - `scripts/e2e.sh` exercises the real flows, including the
-  auto-rebase visualization, conflict resolution via `tbd continue`, and the
-  DAG-gated lease (bootstrap, advance-through-amend, take a teammate's slot).
-
-Git-dependent tests skip automatically when `git` is not on `PATH`.
-
-### Argument parsing and validation
-
-The colon-syntax parser lives in `internal/argv` and is independent of tbd.
-Each command declares the options it accepts as an `argv.Spec` right where it is
-registered (`Named`, `Flags`, and optional `Hints`). The dispatcher validates
-every invocation against that spec merged with the global options, so an unknown
-option (`tbd lease dev-deploy strategy:random`) gets a helpful error with a
-suggestion and the accepted options, rather than being silently ignored. Adding
-or removing an option is a one-line edit to that command's `Spec`; nothing has to
-scan the code to keep validation correct.
-
-Layout: `cmd/tbd` (entrypoint) · `internal/cli` (dispatch) · `internal/config`
-· `internal/git` (the only place that shells out to git) · `internal/invariant`
-(the guard) · `internal/render` (color + the rebase graph) · `internal/commands`.

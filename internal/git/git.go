@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Repo binds a working directory so callers need not repeat it.
@@ -112,6 +113,26 @@ func (r *Repo) GitDir() (string, error) {
 	return r.run("rev-parse", "--absolute-git-dir")
 }
 
+// Root returns the repository work-tree root.
+func (r *Repo) Root() (string, error) {
+	return r.run("rev-parse", "--show-toplevel")
+}
+
+// ConfigSet writes a repository-local git config value.
+func (r *Repo) ConfigSet(key, value string) error {
+	_, err := r.run("config", "--local", key, value)
+	return err
+}
+
+// ConfigGet returns a git config value, or "" when it is unset.
+func (r *Repo) ConfigGet(key string) string {
+	out, err := r.run("config", "--get", key)
+	if err != nil {
+		return ""
+	}
+	return out
+}
+
 // Fetch updates remote-tracking refs and prunes deleted ones.
 func (r *Repo) Fetch(remote string) error {
 	_, err := r.run("fetch", "--prune", remote)
@@ -154,6 +175,12 @@ func (r *Repo) BranchCreate(name, start string) error {
 	return err
 }
 
+// BranchCreateForce creates or moves a local branch to start.
+func (r *Repo) BranchCreateForce(name, start string) error {
+	_, err := r.run("branch", "-f", name, start)
+	return err
+}
+
 // BranchDelete removes a local branch (force).
 func (r *Repo) BranchDelete(name string) error {
 	_, err := r.run("branch", "-D", name)
@@ -163,6 +190,18 @@ func (r *Repo) BranchDelete(name string) error {
 // Checkout switches the working tree to ref.
 func (r *Repo) Checkout(ref string) error {
 	_, err := r.run("switch", ref)
+	return err
+}
+
+// CheckoutCreate creates and switches to a new branch at start.
+func (r *Repo) CheckoutCreate(name, start string) error {
+	_, err := r.run("switch", "-c", name, start)
+	return err
+}
+
+// ResetHard moves the current branch and working tree to ref.
+func (r *Repo) ResetHard(ref string) error {
+	_, err := r.run("reset", "--hard", ref)
 	return err
 }
 
@@ -269,6 +308,12 @@ func (r *Repo) FFMerge(ref string) error {
 // tagger identity (git config user) becomes the lease holder record.
 func (r *Repo) TagAnnotated(name, ref, msg string) error {
 	_, err := r.run("tag", "-f", "-a", name, ref, "-m", msg)
+	return err
+}
+
+// TagDelete removes a local tag.
+func (r *Repo) TagDelete(name string) error {
+	_, err := r.run("tag", "-d", name)
 	return err
 }
 
@@ -502,6 +547,12 @@ func (r *Repo) UpdateRef(name, value string) error {
 	return err
 }
 
+// DeleteRef removes a local ref.
+func (r *Repo) DeleteRef(name string) error {
+	_, err := r.run("update-ref", "-d", name)
+	return err
+}
+
 // RemoteHasBranch reports whether the remote currently has the named branch.
 func (r *Repo) RemoteHasBranch(remote, branch string) bool {
 	out, err := r.run("ls-remote", "--heads", remote, branch)
@@ -529,10 +580,38 @@ func (r *Repo) PushBranchForce(remote, branch string) error {
 	return err
 }
 
+// PushRefCAS publishes a local ref to the same remote ref name using an
+// explicit compare-and-swap value. expected may be empty when the remote ref is
+// expected not to exist.
+func (r *Repo) PushRefCAS(remote, ref, expected string) error {
+	lease := "--force-with-lease=" + ref + ":" + expected
+	_, err := r.run("push", "--atomic", lease, remote, ref+":"+ref)
+	return err
+}
+
+// PushDeleteRef removes any remote ref.
+func (r *Repo) PushDeleteRef(remote, ref string) error {
+	_, err := r.run("push", remote, ":"+ref)
+	return err
+}
+
 // RemoteBranchSha returns the sha the remote currently has for a branch, or ""
 // if the remote does not have it.
 func (r *Repo) RemoteBranchSha(remote, branch string) string {
 	out, err := r.run("ls-remote", "--heads", remote, "refs/heads/"+branch)
+	if err != nil {
+		return ""
+	}
+	fields := strings.Fields(strings.TrimSpace(out))
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
+}
+
+// RemoteRefSha returns the raw sha the remote currently has for ref.
+func (r *Repo) RemoteRefSha(remote, ref string) string {
+	out, err := r.run("ls-remote", remote, ref)
 	if err != nil {
 		return ""
 	}
@@ -558,6 +637,12 @@ func (r *Repo) PushDeleteBranch(remote, branch string) error {
 	return err
 }
 
+// PushDeleteTag deletes a remote tag.
+func (r *Repo) PushDeleteTag(remote, tag string) error {
+	_, err := r.run("push", remote, "--delete", "refs/tags/"+tag)
+	return err
+}
+
 // PushTag pushes a tag to the remote without forcing (for fresh release tags).
 func (r *Repo) PushTag(remote, tag string) error {
 	_, err := r.run("push", remote, "refs/tags/"+tag)
@@ -568,6 +653,19 @@ func (r *Repo) PushTag(remote, tag string) error {
 func (r *Repo) TagLightweight(name, ref string) error {
 	_, err := r.run("tag", "-f", name, ref)
 	return err
+}
+
+// RemoteTagSha returns the raw sha the remote has for tag, or "" if absent.
+func (r *Repo) RemoteTagSha(remote, tag string) string {
+	out, err := r.run("ls-remote", "--tags", remote, "refs/tags/"+tag)
+	if err != nil {
+		return ""
+	}
+	fields := strings.Fields(strings.TrimSpace(out))
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
 }
 
 // PushTagCAS pushes a tag using compare-and-swap: the push succeeds only if the
@@ -584,6 +682,58 @@ func (r *Repo) PushTagCAS(remote, tag, expectedOld string) error {
 func (r *Repo) PushTagForce(remote, tag string) error {
 	_, err := r.run("push", "--force", remote, "refs/tags/"+tag)
 	return err
+}
+
+// RevList returns commit shas in newest-first order for a rev-list expression.
+func (r *Repo) RevList(args ...string) ([]string, error) {
+	out, err := r.run(append([]string{"rev-list"}, args...)...)
+	if err != nil {
+		return nil, err
+	}
+	return nonEmptyLines(out), nil
+}
+
+// RevertNoEdit reverts ref into the current branch using git's default revert
+// message. The caller is responsible for ensuring the working tree is clean.
+func (r *Repo) RevertNoEdit(ref string) error {
+	_, err := r.run("revert", "--no-edit", ref)
+	return err
+}
+
+// EmptyTree returns git's canonical empty tree object id.
+func (r *Repo) EmptyTree() (string, error) {
+	return "4b825dc642cb6eb9a060e54bf8d69288fbee4904", nil
+}
+
+// CommitTree creates an orphan commit with msg and returns its object id.
+func (r *Repo) CommitTree(tree, msg string) (string, error) {
+	return r.run("commit-tree", tree, "-m", msg)
+}
+
+// RefMessage returns the full commit message at ref, or "" when ref is absent
+// or not a commit.
+func (r *Repo) RefMessage(ref string) string {
+	out, err := r.run("log", "-1", "--format=%B", ref)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimRight(out, "\n")
+}
+
+// DecoratedGraph returns a compact decorated graph with all refs. It is meant
+// as raw material for tbd's richer horizon views.
+func (r *Repo) DecoratedGraph(limit int) (string, error) {
+	args := []string{"log", "--graph", "--decorate", "--oneline", "--all", "--date-order"}
+	if limit > 0 {
+		args = append(args, "-n", strconv.Itoa(limit))
+	}
+	return r.run(args...)
+}
+
+// NowRFC3339 exists so callers can use one timestamp format consistently for
+// git-visible metadata.
+func NowRFC3339() string {
+	return time.Now().UTC().Format(time.RFC3339)
 }
 
 func nonEmptyLines(s string) []string {
