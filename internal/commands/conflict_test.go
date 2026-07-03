@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"goforge.dev/tbd/internal/cli"
+	"goforge.dev/tbd/v2/internal/cli"
 )
 
 // setupConflict creates feature/c and trunk commits that edit the SAME file in

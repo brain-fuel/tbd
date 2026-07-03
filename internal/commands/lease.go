@@ -5,8 +5,8 @@ import (
 	"io"
 	"time"
 
-	"goforge.dev/tbd/internal/argv"
-	"goforge.dev/tbd/internal/cli"
+	"goforge.dev/tbd/v2/internal/argv"
+	"goforge.dev/tbd/v2/internal/cli"
 )
 
 func init() {

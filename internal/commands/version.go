@@ -3,11 +3,11 @@ package commands
 import (
 	"fmt"
 
-	"goforge.dev/tbd/internal/cli"
+	"goforge.dev/tbd/v2/internal/cli"
 )
 
 // Version is the tbd version, overridable at build time via
-// -ldflags "-X goforge.dev/tbd/internal/commands.Version=...".
+// -ldflags "-X goforge.dev/tbd/v2/internal/commands.Version=...".
 var Version = "1.12.0"
 
 func init() {

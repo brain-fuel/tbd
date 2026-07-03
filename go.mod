@@ -1,4 +1,4 @@
-module goforge.dev/tbd
+module goforge.dev/tbd/v2
 
 go 1.24
 

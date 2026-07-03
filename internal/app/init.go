@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"goforge.dev/tbd/internal/git"
-	v2config "goforge.dev/tbd/internal/v2/config"
+	"goforge.dev/tbd/v2/internal/git"
+	v2config "goforge.dev/tbd/v2/internal/v2/config"
 )
 
 func newInitCommand(opts *rootOptions) *cobra.Command {

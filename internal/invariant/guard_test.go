@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"goforge.dev/tbd/internal/git"
+	"goforge.dev/tbd/v2/internal/git"
 )
 
 func newRepo(t *testing.T) *git.Repo {

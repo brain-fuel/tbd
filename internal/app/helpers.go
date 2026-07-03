@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"goforge.dev/tbd/internal/git"
-	"goforge.dev/tbd/internal/v2/gitops"
-	"goforge.dev/tbd/internal/v2/hooks"
-	v2state "goforge.dev/tbd/internal/v2/state"
+	"goforge.dev/tbd/v2/internal/git"
+	"goforge.dev/tbd/v2/internal/v2/gitops"
+	"goforge.dev/tbd/v2/internal/v2/hooks"
+	v2state "goforge.dev/tbd/v2/internal/v2/state"
 )
 
 type issueInput struct {

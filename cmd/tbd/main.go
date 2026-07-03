@@ -4,7 +4,7 @@
 package main
 
 import (
-	"goforge.dev/tbd/internal/app"
+	"goforge.dev/tbd/v2/internal/app"
 )
 
 func main() {

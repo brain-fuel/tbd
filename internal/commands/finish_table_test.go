@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"goforge.dev/tbd/internal/cli"
+	"goforge.dev/tbd/v2/internal/cli"
 )
 
 func writeConfig(t *testing.T, dir, yaml string) {

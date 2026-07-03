@@ -7,11 +7,11 @@ import (
 	"os"
 	"strings"
 
-	"goforge.dev/tbd/internal/cli"
-	"goforge.dev/tbd/internal/config"
-	"goforge.dev/tbd/internal/git"
-	"goforge.dev/tbd/internal/invariant"
-	"goforge.dev/tbd/internal/render"
+	"goforge.dev/tbd/v2/internal/cli"
+	"goforge.dev/tbd/v2/internal/config"
+	"goforge.dev/tbd/v2/internal/git"
+	"goforge.dev/tbd/v2/internal/invariant"
+	"goforge.dev/tbd/v2/internal/render"
 )
 
 // env bundles the resolved configuration, repository, and trunk identity shared

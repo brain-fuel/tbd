@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"goforge.dev/tbd/internal/v2/gitops"
+	"goforge.dev/tbd/v2/internal/v2/gitops"
 )
 
 func newLeaseCommand(opts *rootOptions) *cobra.Command {

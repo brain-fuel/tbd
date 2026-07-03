@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"goforge.dev/tbd/internal/git"
-	v2config "goforge.dev/tbd/internal/v2/config"
-	"goforge.dev/tbd/internal/v2/state"
+	"goforge.dev/tbd/v2/internal/git"
+	v2config "goforge.dev/tbd/v2/internal/v2/config"
+	"goforge.dev/tbd/v2/internal/v2/state"
 )
 
 type Env struct {

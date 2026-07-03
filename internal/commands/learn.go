@@ -5,9 +5,9 @@ import (
 	"io"
 	"sort"
 
-	"goforge.dev/tbd/internal/argv"
-	"goforge.dev/tbd/internal/cli"
-	"goforge.dev/tbd/internal/render"
+	"goforge.dev/tbd/v2/internal/argv"
+	"goforge.dev/tbd/v2/internal/cli"
+	"goforge.dev/tbd/v2/internal/render"
 )
 
 func init() {

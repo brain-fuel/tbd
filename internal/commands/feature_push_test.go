@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"goforge.dev/tbd/internal/cli"
+	"goforge.dev/tbd/v2/internal/cli"
 )
 
 // mustCtx builds a Context rooted at dir (color off), discarding the buffers.

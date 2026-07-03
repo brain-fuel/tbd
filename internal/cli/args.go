@@ -1,6 +1,6 @@
 package cli
 
-import "goforge.dev/tbd/internal/argv"
+import "goforge.dev/tbd/v2/internal/argv"
 
 // Args and Parse are re-exported from the argv parser library so existing
 // callers keep working while the parsing/validation logic lives in one place.

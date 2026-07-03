@@ -9,8 +9,8 @@ import (
 	"os"
 	"sort"
 
-	"goforge.dev/tbd/internal/argv"
-	"goforge.dev/tbd/internal/render"
+	"goforge.dev/tbd/v2/internal/argv"
+	"goforge.dev/tbd/v2/internal/render"
 )
 
 // globalSpec lists options every command accepts, folded into each command's own

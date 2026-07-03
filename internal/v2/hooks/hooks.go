@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"time"
 
-	v2config "goforge.dev/tbd/internal/v2/config"
+	v2config "goforge.dev/tbd/v2/internal/v2/config"
 )
 
 type Runner struct {

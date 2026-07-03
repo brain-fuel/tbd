@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"goforge.dev/tbd/internal/cli"
-	"goforge.dev/tbd/internal/git"
+	"goforge.dev/tbd/v2/internal/cli"
+	"goforge.dev/tbd/v2/internal/git"
 )
 
 func openRepo(dir string) (*git.Repo, error) { return git.Open(dir) }

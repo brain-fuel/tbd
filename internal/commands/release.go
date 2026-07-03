@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"goforge.dev/tbd/internal/argv"
-	"goforge.dev/tbd/internal/cli"
-	"goforge.dev/tbd/internal/config"
+	"goforge.dev/tbd/v2/internal/argv"
+	"goforge.dev/tbd/v2/internal/cli"
+	"goforge.dev/tbd/v2/internal/config"
 )
 
 func init() {

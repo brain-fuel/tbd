@@ -6,7 +6,7 @@ package invariant
 import (
 	"errors"
 
-	"goforge.dev/tbd/internal/git"
+	"goforge.dev/tbd/v2/internal/git"
 )
 
 // Sentinel errors callers match to decide how to respond (refuse vs auto-fix).

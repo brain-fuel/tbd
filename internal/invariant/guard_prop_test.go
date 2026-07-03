@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"goforge.dev/tbd/internal/git"
+	"goforge.dev/tbd/v2/internal/git"
 	"pgregory.net/rapid"
 )
 

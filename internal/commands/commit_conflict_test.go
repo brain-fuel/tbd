@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"goforge.dev/tbd/internal/cli"
+	"goforge.dev/tbd/v2/internal/cli"
 )
 
 // setupCommitConflict makes feature/c carry a committed change to a.txt, then
