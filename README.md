@@ -164,13 +164,18 @@ unless `--minor` or `--major` is passed.
 
 ```sh
 tbd lease dev-deploy
+tbd steal dev-deploy
+tbd relinquish dev-deploy
 tbd lease deploy-uat --to HEAD
 ```
 
 Deploy refs are tags or branches depending on `deploy.strategy`, but the
 semantics are identical: the ref is moved by compare-and-swap where a remote is
-available. Do not work while checked out on deploy branches; `tbd` refuses those
-operations.
+available. `lease` borrows an unheld deploy mutex or advances your own held
+mutex. It refuses to silently take a ref held by another branch. `steal` is the
+explicit takeover verb. `relinquish` releases your held mutex by moving the
+deploy ref back to the current trunk head. Do not work while checked out on
+deploy branches; `tbd` refuses those operations.
 
 ## Locks
 
@@ -202,8 +207,35 @@ Browser:
 tbd serve --addr 127.0.0.1:8087
 ```
 
-The server fetches on an interval, renders the repository DAG, and exposes a
-command console that executes `tbd` commands in the repository as a local daemon.
+The server fetches on an interval, exposes `/api/graph` with commits, parent
+edges, refs, and tbd workflow state, and serves a Go/WASM SVG visualizer inspired
+by LearnGitBranching. The command console runs in the repository as a local
+daemon; it accepts quoted arguments and can run `tbd ...` or explicit `git ...`
+commands. The legacy `/graph` endpoint still returns the terminal DAG text. The
+WASM renderer is compiled on first request with the local Go toolchain, so source
+checkouts need `go` on `PATH` when serving the browser UI.
+
+Demo simulation:
+
+```sh
+tbd demo
+tbd demo stack
+tbd demo collab
+tbd demo --addr 127.0.0.1:8088 --dir .tbd-demo --no-open
+```
+
+The demo creates a marked workspace with one bare remote and four local clones
+for Ada, Ben, Cy, and Dee. `tbd demo` runs the basic path with four independent
+feature branches. `tbd demo stack` runs one standalone feature plus three
+three-item stack workflows. `tbd demo collab` runs one standalone feature plus
+three three-item collab workflows. The browser shows the four repos as a 2x2
+desktop grid and only stacks them vertically on narrow screens. A toolbar zoom
+control keeps the graphs readable without losing access to the controls, and
+each step animates the repos and command logs it touched. Every demo uses real
+`tbd` commands and moves deployable work through `dev-deploy`, then `qa-deploy`,
+then `prod-deploy`, including amend/rebase behavior, lease refusal, explicit
+steal/recovery, relinquish-to-trunk, RCs, and production releases. The demo
+directory is deleted on normal shutdown and recreated fresh on the next run.
 
 ## Development
 
@@ -214,4 +246,3 @@ go test ./...
 The legacy `internal/commands`, `internal/cli`, and colon parser packages remain
 in the repository for regression coverage and reusable Git behavior. The binary
 entrypoint is the Cobra V2 app in `internal/app`.
-

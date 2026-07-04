@@ -441,6 +441,26 @@ type Commit struct {
 	Subject string
 }
 
+// GraphCommit is a commit node with enough metadata for a browser visualizer.
+type GraphCommit struct {
+	SHA     string
+	Short   string
+	Parents []string
+	Author  string
+	Email   string
+	Unix    int64
+	Subject string
+}
+
+// GraphRef is a git ref resolved to the commit it points at. For annotated
+// tags, Target is the peeled object rather than the tag object.
+type GraphRef struct {
+	Full       string
+	Short      string
+	ObjectType string
+	Target     string
+}
+
 // StageAll stages every change in the working tree (tracked and untracked).
 func (r *Repo) StageAll() error {
 	_, err := r.run("add", "-A")
@@ -532,6 +552,76 @@ func (r *Repo) LogRange(revRange string) ([]Commit, error) {
 		commits = append(commits, Commit{Short: sha, Subject: subj})
 	}
 	return commits, nil
+}
+
+// GraphCommits returns commits reachable from HEAD and all refs, newest first
+// in topological order. Parent SHAs are full-length IDs so callers can build
+// edges without depending on git-log's ASCII graph output.
+func (r *Repo) GraphCommits(limit int) ([]GraphCommit, error) {
+	format := "%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%ct%x1f%s%x1e"
+	args := []string{"log", "HEAD", "--all", "--topo-order", "--date-order", "--format=" + format}
+	if limit > 0 {
+		args = append(args, "-n", strconv.Itoa(limit))
+	}
+	out, err := r.run(args...)
+	if err != nil {
+		return nil, err
+	}
+	var commits []GraphCommit
+	for _, rec := range strings.Split(out, "\x1e") {
+		rec = strings.TrimSpace(rec)
+		if rec == "" {
+			continue
+		}
+		parts := strings.Split(rec, "\x1f")
+		if len(parts) < 7 {
+			continue
+		}
+		unix, _ := strconv.ParseInt(parts[5], 10, 64)
+		cm := GraphCommit{
+			SHA:     parts[0],
+			Short:   parts[1],
+			Parents: strings.Fields(parts[2]),
+			Author:  parts[3],
+			Email:   parts[4],
+			Unix:    unix,
+			Subject: parts[6],
+		}
+		commits = append(commits, cm)
+	}
+	return commits, nil
+}
+
+// GraphRefs returns local branches, remote-tracking branches, tags, stash, and
+// tbd-owned refs. Missing namespaces are not errors.
+func (r *Repo) GraphRefs() ([]GraphRef, error) {
+	const format = "%(refname)%00%(refname:short)%00%(objecttype)%00%(objectname)%00%(*objectname)%00"
+	out, err := r.run("for-each-ref", "--format="+format, "refs/heads", "refs/remotes", "refs/tags", "refs/stash", "refs/tbd")
+	if err != nil {
+		return nil, err
+	}
+	var refs []GraphRef
+	for _, rec := range strings.Split(out, "\n") {
+		rec = strings.TrimRight(rec, "\r")
+		if rec == "" {
+			continue
+		}
+		parts := strings.Split(rec, "\x00")
+		if len(parts) < 5 {
+			continue
+		}
+		target := parts[3]
+		if parts[2] == "tag" && parts[4] != "" {
+			target = parts[4]
+		}
+		refs = append(refs, GraphRef{
+			Full:       parts[0],
+			Short:      parts[1],
+			ObjectType: parts[2],
+			Target:     target,
+		})
+	}
+	return refs, nil
 }
 
 // PushBranch pushes a local branch to remote (never forced; trunk must

@@ -32,6 +32,8 @@ func New() *cobra.Command {
 		newSRCommand(opts),
 		srCommand(opts, "squash-rebase"),
 		newLeaseCommand(opts),
+		newStealCommand(opts),
+		newRelinquishCommand(opts),
 		newReleaseCommand(opts),
 		newRevertCommand(opts),
 		newTagCommand(opts),
@@ -39,6 +41,7 @@ func New() *cobra.Command {
 		newSyncCommand(opts),
 		newGraphCommand(opts),
 		newServeCommand(opts),
+		newDemoCommand(opts),
 	)
 	return cmd
 }
