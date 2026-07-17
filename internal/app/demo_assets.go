@@ -5,17 +5,19 @@ const demoHTML = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var t=localStorage.getItem("tbd-theme");document.documentElement.setAttribute("data-theme",t==="light"?"light":"dark")}catch(e){document.documentElement.setAttribute("data-theme","dark")}})();</script>
 <title>tbd demo</title>
 <style>
-:root{color-scheme:dark;--bg:#0f1115;--panel:#171b22;--panel2:#202631;--line:#313846;--text:#e8ecf1;--muted:#9aa7b5;--green:#30f03d;--yellow:#ffd347;--red:#ff6969;--cyan:#25d8ff}
+:root{color-scheme:dark;--bg:#02102e;--panel:#06214f;--panel2:#0a2a63;--line:#173a72;--text:#e9eef7;--muted:#9fb2d6;--green:#30f03d;--yellow:#ffd347;--red:#ff6969;--cyan:#25d8ff}
+:root[data-theme="light"]{color-scheme:light;--bg:#ffffff;--panel:#f5f8fd;--panel2:#e9f0fa;--line:#d3ddf0;--text:#0a1f4d;--muted:#51617f}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;height:100dvh;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--bg);color:var(--text);font:14px Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
 button,input{font:inherit}
-button{min-height:34px;border:1px solid var(--line);border-radius:6px;background:#252c37;color:var(--text);padding:0 12px;cursor:pointer}
-button:hover{border-color:#596577;background:#303947}
-button.primary{background:var(--green);border-color:var(--green);color:#101214;font-weight:700}
-.topbar{min-height:64px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;padding:10px 16px;background:#141820;border-bottom:1px solid var(--line);z-index:10}
+button{min-height:34px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--text);padding:0 12px;cursor:pointer}
+button:hover{border-color:var(--muted);background:var(--line)}
+button.primary{background:var(--green);border-color:var(--green);color:var(--bg);font-weight:700}
+.topbar{min-height:64px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);z-index:10}
 .title{min-width:0}
 .title strong{display:block;font-size:16px}
 .title span{display:block;color:var(--muted);font:12px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -23,12 +25,12 @@ button.primary{background:var(--green);border-color:var(--green);color:#101214;f
 .speed,.zoom{display:flex;align-items:center;gap:6px;color:var(--muted)}
 .speed input,.zoom input{width:110px}
 .app{min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden}
-.story{border-bottom:1px solid var(--line);padding:12px 16px;background:#10151d;display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:start}
+.story{border-bottom:1px solid var(--line);padding:12px 16px;background:var(--bg);display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:start}
 .counter{font:700 22px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--yellow)}
 .story h1{font-size:16px;margin:0 0 4px}
-.story p{margin:0;color:#c8d2dd;line-height:1.35}
+.story p{margin:0;color:var(--text);line-height:1.35}
 .agents{min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));overflow:hidden}
-.agent{min-width:0;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) minmax(86px,15vh);border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#11151c}
+.agent{min-width:0;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) minmax(86px,15vh);border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg)}
 .agent.active{box-shadow:inset 0 0 0 2px var(--yellow);animation:agentPulse .7s ease}
 .agent.active .graph-svg{animation:graphPop .55s ease}
 .agent:nth-child(2n){border-right:0}
@@ -37,28 +39,30 @@ button.primary{background:var(--green);border-color:var(--green);color:#101214;f
 .agent-head strong{font-size:15px}
 .agent-head span{display:block;color:var(--muted);font:12px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .graph{min-height:0;overflow:auto;padding:10px}
-.log{min-height:0;overflow:auto;border-top:1px solid var(--line);background:#0c1016;padding:8px;display:grid;align-content:start;gap:8px}
-.entry{border:1px solid var(--line);border-radius:6px;background:#121821;padding:7px}
+.log{min-height:0;overflow:auto;border-top:1px solid var(--line);background:var(--bg);padding:8px;display:grid;align-content:start;gap:8px}
+.entry{border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:7px}
 .entry.failed{border-color:#7d3036;background:#1c1218}
 .entry.fresh{border-color:var(--yellow);animation:logIn .45s ease}
 .entry b{display:block;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--cyan);margin-bottom:4px}
 .entry.failed b{color:var(--red)}
-.entry pre{margin:0;white-space:pre-wrap;color:#cfd7df;font:11px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace}
+.entry pre{margin:0;white-space:pre-wrap;color:var(--text);font:11px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace}
 .status{color:var(--muted);font:12px ui-monospace,SFMono-Regular,Menlo,monospace}
 .graph-svg{display:block;transform-origin:0 0}
 .commit-node{cursor:pointer}
 .commit-node:hover circle{stroke:var(--yellow);stroke-width:4}
-.ref-label text{font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#111}
-.commit-subject{font:13px ui-sans-serif,system-ui,sans-serif;fill:#b9c4d0}
-.commit-sha{font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#111}
-.edge{fill:none;stroke:#39424f;stroke-width:3;stroke-linecap:round}.edge-arrow{fill:#39424f}
+.ref-label text{font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--panel)}
+.commit-subject{font:13px ui-sans-serif,system-ui,sans-serif;fill:var(--muted)}
+.commit-sha{font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--panel)}
+.edge{fill:none;stroke:var(--line);stroke-width:3;stroke-linecap:round}.edge-arrow{fill:var(--line)}
 @keyframes agentPulse{0%{box-shadow:inset 0 0 0 2px rgba(255,211,71,.2)}35%{box-shadow:inset 0 0 0 2px var(--yellow),0 0 0 4px rgba(255,211,71,.12)}100%{box-shadow:inset 0 0 0 2px var(--yellow)}}
 @keyframes graphPop{0%{opacity:.65;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
 @keyframes logIn{0%{opacity:.25;transform:translateY(-8px)}100%{opacity:1;transform:translateY(0)}}
 @media (max-width:820px){.agents{grid-template-columns:1fr;grid-template-rows:none;overflow:auto}.agent{min-height:520px;border-right:0;border-bottom:1px solid var(--line)}.agent:nth-child(2n){border-right:0}.agent:nth-last-child(-n+2){border-bottom:1px solid var(--line)}body{overflow:auto}.app{overflow:visible}.topbar{position:sticky;top:0}}
+#theme-toggle{position:fixed;top:10px;right:10px;z-index:100;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 9px;cursor:pointer;font-size:1rem;line-height:1}#theme-toggle .moon{display:none}:root[data-theme="light"] #theme-toggle .sun{display:none}:root[data-theme="light"] #theme-toggle .moon{display:inline}
 </style>
 </head>
 <body>
+<button id="theme-toggle" type="button" title="Toggle light / dark"><span class="sun">☀</span><span class="moon">☾</span></button>
 <header class="topbar">
   <div class="title"><strong>tbd demo</strong><span id="workspace">loading</span></div>
   <div class="controls">
@@ -98,6 +102,7 @@ function bind(){
   el("step").addEventListener("click", step);
   el("play").addEventListener("click", togglePlay);
   el("reset").addEventListener("click", reset);
+  el("theme-toggle").addEventListener("click", function(){var r=document.documentElement,c=r.getAttribute("data-theme")==="light"?"dark":"light";r.setAttribute("data-theme",c);try{localStorage.setItem("tbd-theme",c)}catch(e){}render();});
   el("zoom").addEventListener("input", function(){ zoom = (Number(el("zoom").value) || 60) / 100; render(); });
   el("speed").addEventListener("input", function(){ if (playing) schedule(); });
 }

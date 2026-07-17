@@ -331,7 +331,7 @@ func drawCommit(svg js.Value, lay layout, stageID string, cm commit) {
 		"cy":           f(pos.Y),
 		"r":            "17",
 		"fill":         commitColor(refs),
-		"stroke":       "#fff",
+		"stroke":       neutralStroke(),
 		"stroke-width": "2",
 	})
 	if hasRemoteOnly(refs) {
@@ -402,7 +402,7 @@ func drawRefs(svg js.Value, lay layout, sha string) {
 			"height":       f(height),
 			"rx":           "4",
 			"fill":         refColor(r),
-			"stroke":       "#fff",
+			"stroke":       neutralStroke(),
 			"stroke-width": "2",
 		})
 		if r.Kind == "remote" {
@@ -496,6 +496,43 @@ func sortRefs(refs []ref) {
 	})
 }
 
+// themeDark reports whether the page is in the dark theme (the default). Only
+// the neutral colors below (node stroke, tag/label ink, remote muted) flip with
+// it; the vivid commit/ref/branch colors are tbd's data-viz and stay put. The
+// graph re-renders on toggle, so these are re-read each draw.
+func themeDark() bool {
+	doc := js.Global().Get("document")
+	if !doc.Truthy() {
+		return true
+	}
+	el := doc.Get("documentElement")
+	if !el.Truthy() {
+		return true
+	}
+	return el.Call("getAttribute", "data-theme").String() != "light"
+}
+
+func neutralStroke() string {
+	if themeDark() {
+		return "#fff"
+	}
+	return "#0a1f4d"
+}
+
+func neutralInk() string {
+	if themeDark() {
+		return neutralInk()
+	}
+	return "#0a1f4d"
+}
+
+func neutralMuted() string {
+	if themeDark() {
+		return neutralMuted()
+	}
+	return "#51617f"
+}
+
 func commitColor(refs []ref) string {
 	for _, r := range refs {
 		if r.Kind == "head" {
@@ -516,7 +553,7 @@ func commitColor(refs []ref) string {
 			return "#7278ff"
 		}
 		if r.Kind == "tag" {
-			return "#dce7f0"
+			return neutralInk()
 		}
 	}
 	return "#5cbcfc"
@@ -540,9 +577,9 @@ func refColor(r ref) string {
 	case "branch":
 		return branchColor(r.Name)
 	case "remote":
-		return "#8fa3b8"
+		return neutralMuted()
 	case "tag":
-		return "#dce7f0"
+		return neutralInk()
 	default:
 		return "#25d8ff"
 	}

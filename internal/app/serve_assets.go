@@ -9,23 +9,11 @@ const visualHTML = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var t=localStorage.getItem("tbd-theme");document.documentElement.setAttribute("data-theme",t==="light"?"light":"dark")}catch(e){document.documentElement.setAttribute("data-theme","dark")}})();</script>
 <title>tbd visualizer</title>
 <style>
-:root{
-  color-scheme:dark;
-  --bg:#0f1115;
-  --panel:#171b22;
-  --panel-2:#202631;
-  --line:#313846;
-  --text:#e8ecf1;
-  --muted:#9aa7b5;
-  --green:#30f03d;
-  --cyan:#25d8ff;
-  --yellow:#ffd347;
-  --pink:#ff5ec4;
-  --red:#ff6969;
-  --blue:#7278ff;
-}
+:root{color-scheme:dark;--bg:#02102e;--panel:#06214f;--panel-2:#0a2a63;--line:#173a72;--text:#e9eef7;--muted:#9fb2d6;--green:#30f03d;--cyan:#25d8ff;--yellow:#ffd347;--pink:#ff5ec4;--red:#ff6969;--blue:#7278ff}
+:root[data-theme="light"]{color-scheme:light;--bg:#ffffff;--panel:#f5f8fd;--panel-2:#e9f0fa;--line:#d3ddf0;--text:#0a1f4d;--muted:#51617f}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
@@ -43,15 +31,15 @@ body{
 button,input,textarea{font:inherit}
 button{
   border:1px solid var(--line);
-  background:#252c37;
+  background:var(--panel-2);
   color:var(--text);
   min-height:34px;
   padding:0 12px;
   border-radius:6px;
   cursor:pointer;
 }
-button:hover{border-color:#596577;background:#303947}
-button.primary{background:var(--green);border-color:var(--green);color:#101214;font-weight:700}
+button:hover{border-color:var(--muted);background:var(--line)}
+button.primary{background:var(--green);border-color:var(--green);color:var(--bg);font-weight:700}
 button.icon{width:34px;padding:0}
 .topbar{
   min-height:58px;
@@ -60,7 +48,7 @@ button.icon{width:34px;padding:0}
   align-items:center;
   gap:16px;
   padding:0 16px;
-  background:#141820;
+  background:var(--panel);
   border-bottom:1px solid var(--line);
   position:sticky;
   top:0;
@@ -75,7 +63,7 @@ button.icon{width:34px;padding:0}
 .field input[type="range"]{width:104px}
 input[type="number"],textarea{
   border:1px solid var(--line);
-  background:#10141b;
+  background:var(--bg);
   color:var(--text);
   border-radius:6px;
   padding:8px;
@@ -86,12 +74,12 @@ input[type="number"],textarea{
   min-height:0;
   overflow:hidden;
 }
-.workspace{min-width:0;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;background:#11151c}
+.workspace{min-width:0;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;background:var(--bg)}
 .stage-wrap{min-height:0;overflow:auto;position:relative}
 #graph-stage{min-width:100%;min-height:100%;padding:18px}
 .loading{color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;padding:24px}
-.raw-wrap{border-top:1px solid var(--line);background:#0d1015;max-height:210px;overflow:auto}
-#raw-graph{margin:0;padding:12px 16px;color:#c9d2dc;font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre}
+.raw-wrap{border-top:1px solid var(--line);background:var(--bg);max-height:210px;overflow:auto}
+#raw-graph{margin:0;padding:12px 16px;color:var(--text);font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre}
 .side{
   min-width:0;
   min-height:0;
@@ -104,25 +92,25 @@ input[type="number"],textarea{
 .panel{border-bottom:1px solid var(--line);padding:14px}
 .panel-title{font-size:12px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:10px}
 .status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.metric{background:#11161e;border:1px solid var(--line);border-radius:6px;padding:8px}
+.metric{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px}
 .metric b{display:block;color:var(--muted);font-size:11px;margin-bottom:3px}
 .metric span{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .filters{display:flex;flex-wrap:wrap;gap:8px}
-.filters label{display:flex;align-items:center;gap:6px;background:#11161e;border:1px solid var(--line);border-radius:6px;padding:6px 8px;color:#cfd7df}
-.console{min-height:0;display:grid;grid-template-rows:auto minmax(76px,120px) auto;background:#0c1016}
+.filters label{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;color:var(--text)}
+.console{min-height:0;display:grid;grid-template-rows:auto minmax(76px,120px) auto;background:var(--bg)}
 .console form{display:grid;gap:8px}
 textarea{width:100%;height:60px;resize:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .command-row{display:flex;gap:8px;align-items:center}
 .command-row button.primary{min-width:72px}
 .quick{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .scroll-panel{min-height:0;overflow:auto}
-#details,#workflow,#history{font-size:13px;color:#d7dee6}
+#details,#workflow,#history{font-size:13px;color:var(--text)}
 .selection-title{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--yellow);margin-bottom:8px}
 .kv{display:grid;grid-template-columns:82px minmax(0,1fr);gap:5px 8px;margin:0}
 .kv dt{color:var(--muted)}
 .kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
 .list{display:grid;gap:8px}
-.list-item{border:1px solid var(--line);background:#11161e;border-radius:6px;padding:8px}
+.list-item{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:8px}
 .list-item b{display:block;margin-bottom:2px}
 .list-item small{color:var(--muted)}
 #out{
@@ -132,9 +120,9 @@ textarea{width:100%;height:60px;resize:none;font-family:ui-monospace,SFMono-Regu
   max-height:none;
   overflow:auto;
   white-space:pre-wrap;
-  color:#cfd7df;
+  color:var(--text);
   font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;
-  background:#0c1016;
+  background:var(--bg);
   border-top:1px solid var(--line);
   padding:12px 14px;
 }
@@ -143,11 +131,11 @@ textarea{width:100%;height:60px;resize:none;font-family:ui-monospace,SFMono-Regu
 .graph-svg{display:block;transform-origin:0 0;transition:transform 120ms ease}
 .commit-node{cursor:pointer}
 .commit-node:hover circle{stroke:var(--yellow);stroke-width:4}
-.ref-label text{font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#111}
-.commit-subject{font:13px ui-sans-serif,system-ui,sans-serif;fill:#b9c4d0}
-.commit-sha{font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#111}
-.edge{fill:none;stroke:#39424f;stroke-width:3;stroke-linecap:round}
-.edge-arrow{fill:#39424f}
+.ref-label text{font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--panel)}
+.commit-subject{font:13px ui-sans-serif,system-ui,sans-serif;fill:var(--muted)}
+.commit-sha{font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--panel)}
+.edge{fill:none;stroke:var(--line);stroke-width:3;stroke-linecap:round}
+.edge-arrow{fill:var(--line)}
 @media (max-width: 980px){
   .topbar{height:auto;grid-template-columns:1fr;padding:12px}
   .toolbar{justify-content:flex-start}
@@ -162,6 +150,7 @@ textarea{width:100%;height:60px;resize:none;font-family:ui-monospace,SFMono-Regu
   .quick{gap:6px;margin-top:8px}
   .notice{padding:7px 12px}
 }
+#theme-toggle .moon{display:none}#theme-toggle .sun{display:inline}:root[data-theme="light"] #theme-toggle .sun{display:none}:root[data-theme="light"] #theme-toggle .moon{display:inline}
 </style>
 </head>
 <body>
@@ -176,6 +165,7 @@ textarea{width:100%;height:60px;resize:none;font-family:ui-monospace,SFMono-Regu
     <label class="field">Limit <input id="limit" type="number" min="20" max="2000" step="20" value="240"></label>
     <label class="field">Zoom <input id="zoom" type="range" min="70" max="150" value="100"></label>
     <span id="sync-state">loading</span>
+    <button id="theme-toggle" type="button" title="Toggle light / dark"><span class="sun">☀</span><span class="moon">☾</span></button>
   </div>
 </header>
 <main class="app">
@@ -274,6 +264,7 @@ function boot(){
 
 function bindControls(){
   el("refresh").addEventListener("click", refreshGraph);
+  el("theme-toggle").addEventListener("click", function(){var r=document.documentElement,c=r.getAttribute("data-theme")==="light"?"dark":"light";r.setAttribute("data-theme",c);try{localStorage.setItem("tbd-theme",c)}catch(e){}renderGraph();});
   el("live").addEventListener("click", function(){
     state.live = !state.live;
     el("live").setAttribute("aria-pressed", String(state.live));
