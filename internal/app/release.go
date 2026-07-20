@@ -1,11 +1,17 @@
 package app
 
 import (
+	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
+	stdcas "goforge.dev/goplus/std/cas"
+	"goforge.dev/goplus/std/semver"
+	"goforge.dev/goplus/std/workflow"
 
 	"goforge.dev/tbd/v2/internal/git"
+	"goforge.dev/tbd/v2/internal/v2/domain"
 	"goforge.dev/tbd/v2/internal/v2/gitops"
 	v2state "goforge.dev/tbd/v2/internal/v2/state"
 )
@@ -22,7 +28,11 @@ func releaseRCCommand(opts *rootOptions) *cobra.Command {
 		Short: "mark the current rebased candidate as UAT-good and move rc-<semver>",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			semver := args[0]
+			version, err := semver.Parse(args[0])
+			if err != nil {
+				return err
+			}
+			semver := version.String()
 			e, err := loadEnv(cmd, opts)
 			if err != nil {
 				return err
@@ -52,7 +62,7 @@ func releaseRCCommand(opts *rootOptions) *cobra.Command {
 			items := releaseItemsForHead(e, st)
 			st.UAT[semver] = v2state.UATState{Semver: semver, CandidateRef: gitops.RCTag(e.Config, semver), Commit: head, Valid: true, UpdatedAt: git.NowRFC3339()}
 			v2state.UpsertDraft(&book, v2state.ReleaseDraft{Semver: semver, Status: "rc", Items: items})
-			v2state.AppendEvent(&book, v2state.ReleaseEvent{Type: "rc", Semver: semver, Ref: gitops.RCTag(e.Config, semver), Commit: head, Items: items})
+			v2state.AppendEvent(&book, v2state.NewReleaseEvent(domain.Candidate{}, semver, gitops.RCTag(e.Config, semver), head, items))
 			if err := v2state.Save(e.Root, st); err != nil {
 				return err
 			}
@@ -77,7 +87,11 @@ func releasePrepareCommand(opts *rootOptions) *cobra.Command {
 		Short: "create immutable release/<semver> branch in branch release mode",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			semver := args[0]
+			version, err := semver.Parse(args[0])
+			if err != nil {
+				return err
+			}
+			semver := version.String()
 			e, err := loadEnv(cmd, opts)
 			if err != nil {
 				return err
@@ -120,7 +134,11 @@ func releaseCompleteCommand(opts *rootOptions) *cobra.Command {
 		Short: "mark a successful production deploy, tag v<semver>, and fast-forward trunk",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			semver := args[0]
+			version, err := semver.Parse(args[0])
+			if err != nil {
+				return err
+			}
+			semver := version.String()
 			e, err := loadEnv(cmd, opts)
 			if err != nil {
 				return err
@@ -142,27 +160,55 @@ func releaseCompleteCommand(opts *rootOptions) *cobra.Command {
 			if err := e.EnsureOnTrunk(ref); err != nil {
 				return err
 			}
-			book, err := v2state.LoadRelease(e.Root)
+			gitDir, err := e.Repo.GitDir()
 			if err != nil {
 				return err
 			}
-			head, _ := e.Repo.RevParse(ref)
-			v2state.AppendEvent(&book, v2state.ReleaseEvent{Type: "release", Semver: semver, Ref: gitops.ReleaseTag(e.Config, semver), Commit: head})
-			if err := saveReleaseWorkflow(e, book, "chore(tbd): release "+semver); err != nil {
+			journal := workflow.FileJournal{Dir: filepath.Join(gitDir, "tbd-workflows")}
+			releaseRef := ref
+			saga := workflow.Saga{ID: "release-" + semver, Kind: "release", Steps: []workflow.Step{
+				{Name: "record-metadata", Run: func(context.Context) error {
+					book, err := v2state.LoadRelease(e.Root)
+					if err != nil {
+						return err
+					}
+					head, err := e.Repo.RevParse(releaseRef)
+					if err != nil {
+						return err
+					}
+					if !hasReleaseEvent(book, semver, head) {
+						v2state.AppendEvent(&book, v2state.NewReleaseEvent(domain.Released{}, semver, gitops.ReleaseTag(e.Config, semver), head, nil))
+					}
+					return saveReleaseWorkflow(e, book, "chore(tbd): release "+semver)
+				}},
+				{Name: "publish-tag", Run: func(context.Context) error {
+					tagRef := "HEAD"
+					if e.Config.Release.Strategy == "branch" && from == "" {
+						tagRef = e.Config.Release.BranchPrefix + semver
+					}
+					commit, err := e.Repo.RevParse(tagRef)
+					if err != nil {
+						return err
+					}
+					return replaceTag(e, gitops.ReleaseTag(e.Config, semver), commit, "release "+semver, false)
+				}},
+				{Name: "advance-trunk", Run: func(context.Context) error {
+					tagRef := "HEAD"
+					if e.Config.Release.Strategy == "branch" && from == "" {
+						tagRef = e.Config.Release.BranchPrefix + semver
+					}
+					commit, err := e.Repo.RevParse(tagRef)
+					if err != nil {
+						return err
+					}
+					return fastForwardTrunk(e, commit)
+				}},
+			}}
+			if err := workflow.Run(cmd.Context(), journal, saga); err != nil {
 				return err
 			}
-			ref = "HEAD"
-			if e.Config.Release.Strategy == "branch" && from == "" {
-				ref = e.Config.Release.BranchPrefix + semver
-			}
-			releaseCommit, err := e.Repo.RevParse(ref)
+			releaseCommit, err := e.Repo.RevParse(gitops.ReleaseTag(e.Config, semver))
 			if err != nil {
-				return err
-			}
-			if err := replaceTag(e, gitops.ReleaseTag(e.Config, semver), releaseCommit, "release "+semver, false); err != nil {
-				return err
-			}
-			if err := fastForwardTrunk(e, releaseCommit); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "released %s from %s\n", semver, releaseCommit[:12])
@@ -171,6 +217,15 @@ func releaseCompleteCommand(opts *rootOptions) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&from, "from", "", "release source ref, defaults to release/<semver> in branch mode or HEAD in tag mode")
 	return cmd
+}
+
+func hasReleaseEvent(book v2state.ReleaseBook, semver, commit string) bool {
+	for _, event := range book.Events {
+		if event.Type == "release" && event.Semver == semver && event.Commit == commit {
+			return true
+		}
+	}
+	return false
 }
 
 func replaceTag(e gitops.Env, tag, ref, msg string, deleteOld bool) error {
@@ -195,7 +250,9 @@ func replaceTag(e gitops.Env, tag, ref, msg string, deleteOld bool) error {
 		if e.Config.Push.Tag == "force" || deleteOld {
 			return e.Repo.PushTagForce(e.Config.Remote, tag)
 		}
-		return e.Repo.PushTagCAS(e.Config.Remote, tag, expected)
+		observed := stdcas.Observation[string, string]{Key: "refs/tags/" + tag, Version: expected, Value: expected, Exists: expected != ""}
+		_, err := e.Repo.PushRefObserved(e.Config.Remote, observed)
+		return err
 	}
 	return nil
 }

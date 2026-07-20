@@ -5,10 +5,9 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"os/exec"
 	"time"
 
+	"goforge.dev/goplus/std/process"
 	v2config "goforge.dev/tbd/v2/internal/v2/config"
 )
 
@@ -111,12 +110,8 @@ func (r Runner) runStep(hookName string, step v2config.HookStep, warnOnly bool) 
 		}
 	}
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
-	cmd.Dir = r.Root
-	cmd.Env = os.Environ()
-	cmd.Stdout = r.Stdout
-	cmd.Stderr = r.Stderr
-	if err := cmd.Run(); err != nil {
+	_, err := process.Run(ctx, process.Spec{Path: "sh", Args: []string{"-c", command}, Dir: r.Root, Stdout: r.Stdout, Stderr: r.Stderr})
+	if err != nil {
 		if optional || warnOnly {
 			if r.Stderr != nil {
 				fmt.Fprintf(r.Stderr, "warning: optional hook %s failed: %v\n", hookName, err)

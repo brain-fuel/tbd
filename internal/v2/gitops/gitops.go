@@ -11,6 +11,7 @@ import (
 
 	"goforge.dev/tbd/v2/internal/git"
 	v2config "goforge.dev/tbd/v2/internal/v2/config"
+	"goforge.dev/tbd/v2/internal/v2/domain"
 	"goforge.dev/tbd/v2/internal/v2/state"
 )
 
@@ -119,9 +120,9 @@ func (e Env) EnsureNotProtectedBranch() error {
 	return nil
 }
 
-func BranchName(cfg v2config.Config, kind, id, desc string) string {
+func BranchName(cfg v2config.Config, kind domain.WorkKind, id, desc string) string {
 	slug := state.Slug(desc)
-	switch kind {
+	switch domain.WorkKindName(kind) {
 	case "feature":
 		return renderTemplate(cfg.Branches.FeatureTemplate, id, slug)
 	case "fix":

@@ -6,6 +6,25 @@ Cobra flags only; the old colon argument syntax is intentionally gone.
 The core rule is still simple: deployable work must be rebased onto the current
 configured trunk before it moves through deploy or release refs.
 
+## v2.3.0 — Go+ Workflow Semantics
+
+The semantic core is now authored in Go+. Closed enums define work kinds,
+group kinds, item states, release events, push policy, UAT state, and lease
+classification, while generated Go preserves the existing JSON wire format.
+
+Release completion is a durable three-step workflow: record metadata, publish
+the release tag through an observed compare-and-swap, then advance trunk. A
+crash or rejected push resumes at the first incomplete step instead of
+repeating completed effects. Configuration uses defaults plus path-aware
+validation, release versions use strict SemVer, hooks retain structured process
+failures, and state files use crash-safe atomic replacement.
+
+Regenerate the checked-in Go facade after editing `.gp` sources:
+
+```sh
+go generate ./...
+```
+
 ## Install
 
 ```sh

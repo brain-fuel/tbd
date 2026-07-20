@@ -13,6 +13,10 @@ import (
 	"time"
 )
 
+// NOTE: imports below are kept separate so the Git adapter exposes the same
+// typed CAS vocabulary as other Go+ stores.
+import stdcas "goforge.dev/goplus/std/cas"
+
 // Repo binds a working directory so callers need not repeat it.
 type Repo struct{ Dir string }
 
@@ -677,6 +681,27 @@ func (r *Repo) PushRefCAS(remote, ref, expected string) error {
 	lease := "--force-with-lease=" + ref + ":" + expected
 	_, err := r.run("push", "--atomic", lease, remote, ref+":"+ref)
 	return err
+}
+
+// ObserveRemoteRef captures the exact remote value a later CAS must compare.
+func (r *Repo) ObserveRemoteRef(remote, ref string) stdcas.Observation[string, string] {
+	value := r.RemoteRefSha(remote, ref)
+	return stdcas.Observation[string, string]{Key: ref, Version: value, Value: value, Exists: value != ""}
+}
+
+// PushRefObserved consumes an explicit observation at the Git protocol
+// boundary and returns the remote value on a rejected comparison.
+func (r *Repo) PushRefObserved(remote string, observed stdcas.Observation[string, string]) (stdcas.Result[string], error) {
+	err := r.PushRefCAS(remote, observed.Key, observed.Version)
+	if err == nil {
+		value := r.RemoteRefSha(remote, observed.Key)
+		return stdcas.Updated[string]{Value: value, Version: value}, nil
+	}
+	actual := r.RemoteRefSha(remote, observed.Key)
+	if actual == "" {
+		return stdcas.Missing[string]{}, err
+	}
+	return stdcas.Changed[string]{Actual: actual, Version: actual}, err
 }
 
 // PushDeleteRef removes any remote ref.

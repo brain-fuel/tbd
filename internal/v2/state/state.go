@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"goforge.dev/goplus/std/fsatomic"
 )
 
 const (
@@ -132,7 +134,7 @@ func Save(root string, st State) error {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(path, data, 0o644)
+	return fsatomic.WriteFile(path, data, 0o644)
 }
 
 func LoadRelease(root string) (ReleaseBook, error) {
@@ -158,10 +160,10 @@ func SaveRelease(root string, book ReleaseBook) error {
 		return err
 	}
 	data = append(data, '\n')
-	if err := os.WriteFile(filepath.Join(root, ReleaseJSONName), data, 0o644); err != nil {
+	if err := fsatomic.WriteFile(filepath.Join(root, ReleaseJSONName), data, 0o644); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(root, ReleaseMDName), []byte(RenderMarkdown(book)), 0o644)
+	return fsatomic.WriteFile(filepath.Join(root, ReleaseMDName), []byte(RenderMarkdown(book)), 0o644)
 }
 
 func RenderMarkdown(book ReleaseBook) string {

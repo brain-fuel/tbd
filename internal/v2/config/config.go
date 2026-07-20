@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	stdconfig "goforge.dev/goplus/std/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -166,13 +167,25 @@ func Load(startDir string) (Config, string, error) {
 	if err != nil {
 		return cfg, path, err
 	}
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return cfg, path, fmt.Errorf("parse %s: %w", path, err)
+	schema := stdconfig.Schema[Config]{
+		Defaults:   Default,
+		Decoder:    yamlDecoder{},
+		Validators: []stdconfig.Validator[Config]{stdconfig.ValidateFunc[Config](func(c Config) error { return c.Validate() })},
 	}
-	if err := cfg.Validate(); err != nil {
+	cfg, err = schema.Load(data)
+	if err != nil {
 		return cfg, path, err
 	}
 	return cfg, path, nil
+}
+
+type yamlDecoder struct{}
+
+func (yamlDecoder) Decode(data []byte, base Config) (Config, error) {
+	if err := yaml.Unmarshal(data, &base); err != nil {
+		return Config{}, fmt.Errorf("parse YAML: %w", err)
+	}
+	return base, nil
 }
 
 func (c Config) Save(path string) error {
@@ -188,48 +201,48 @@ func (c Config) Validate() error {
 		c.Version = 2
 	}
 	if c.TrunkName == "" {
-		return fmt.Errorf("trunk-name must not be empty")
+		return stdconfig.At("trunk-name", fmt.Errorf("must not be empty"))
 	}
 	if c.Remote == "" {
-		return fmt.Errorf("remote must not be empty")
+		return stdconfig.At("remote", fmt.Errorf("must not be empty"))
 	}
 	if c.Branches.FeatureTemplate == "" || c.Branches.FixTemplate == "" {
-		return fmt.Errorf("branch templates must not be empty")
+		return stdconfig.At("branches", fmt.Errorf("templates must not be empty"))
 	}
 	switch c.Release.Strategy {
 	case "tag", "branch":
 	default:
-		return fmt.Errorf("release.strategy must be tag or branch")
+		return stdconfig.At("release.strategy", fmt.Errorf("must be tag or branch"))
 	}
 	if c.Release.BranchPrefix == "" {
-		return fmt.Errorf("release.branch-prefix must not be empty")
+		return stdconfig.At("release.branch-prefix", fmt.Errorf("must not be empty"))
 	}
 	if c.Release.TagTemplate == "" || c.Release.RCTagTemplate == "" {
-		return fmt.Errorf("release tag templates must not be empty")
+		return stdconfig.At("release", fmt.Errorf("tag templates must not be empty"))
 	}
 	switch c.Deploy.Strategy {
 	case "tag", "branch":
 	default:
-		return fmt.Errorf("deploy.strategy must be tag or branch")
+		return stdconfig.At("deploy.strategy", fmt.Errorf("must be tag or branch"))
 	}
 	if len(c.Deploy.Refs) == 0 {
-		return fmt.Errorf("deploy.refs must contain at least one ref")
+		return stdconfig.At("deploy.refs", fmt.Errorf("must contain at least one ref"))
 	}
 	switch c.Push.Branch {
 	case "", "force-with-lease", "force":
 	default:
-		return fmt.Errorf("push.branch must be force-with-lease or force")
+		return stdconfig.At("push.branch", fmt.Errorf("must be force-with-lease or force"))
 	}
 	switch c.Push.Tag {
 	case "", "force-with-lease", "force":
 	default:
-		return fmt.Errorf("push.tag must be force-with-lease or force")
+		return stdconfig.At("push.tag", fmt.Errorf("must be force-with-lease or force"))
 	}
 	if c.Locks.RefPrefix == "" {
-		return fmt.Errorf("locks.ref-prefix must not be empty")
+		return stdconfig.At("locks.ref-prefix", fmt.Errorf("must not be empty"))
 	}
 	if _, err := time.ParseDuration(c.Locks.DefaultTTL); err != nil {
-		return fmt.Errorf("locks.default-ttl: %w", err)
+		return stdconfig.At("locks.default-ttl", err)
 	}
 	return nil
 }

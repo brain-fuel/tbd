@@ -1,0 +1,16 @@
+package state
+
+import (
+	"goforge.dev/tbd/v2/internal/git"
+	"goforge.dev/tbd/v2/internal/v2/domain"
+)
+
+// NewItem is the typed construction boundary for the string-compatible state
+// wire format. Closed Go+ enums prevent misspelled kinds and statuses.
+func NewItem(kind domain.WorkKind, status domain.ItemStatus, id, desc, branch, commit string) Item {
+	return Item{ID: id, Kind: domain.WorkKindName(kind), Desc: desc, Branch: branch, Commit: commit, Status: domain.ItemStatusName(status), TouchedAt: git.NowRFC3339()}
+}
+
+func NewReleaseEvent(kind domain.ReleaseEventKind, semver, ref, commit string, items []ReleaseItem) ReleaseEvent {
+	return ReleaseEvent{Type: domain.ReleaseEventKindName(kind), Semver: semver, Ref: ref, Commit: commit, Items: items}
+}

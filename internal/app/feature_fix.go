@@ -5,20 +5,21 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"goforge.dev/tbd/v2/internal/git"
+	"goforge.dev/tbd/v2/internal/v2/domain"
 	"goforge.dev/tbd/v2/internal/v2/gitops"
 	v2state "goforge.dev/tbd/v2/internal/v2/state"
 )
 
 func newFeatureCommand(opts *rootOptions) *cobra.Command {
-	return newWorkItemCommand(opts, "feature", true)
+	return newWorkItemCommand(opts, domain.Feature{}, true)
 }
 
 func newFixCommand(opts *rootOptions) *cobra.Command {
-	return newWorkItemCommand(opts, "fix", false)
+	return newWorkItemCommand(opts, domain.Fix{}, false)
 }
 
-func newWorkItemCommand(opts *rootOptions, kind string, requireID bool) *cobra.Command {
+func newWorkItemCommand(opts *rootOptions, workKind domain.WorkKind, requireID bool) *cobra.Command {
+	kind := domain.WorkKindName(workKind)
 	var id, desc string
 	cmd := &cobra.Command{
 		Use:   kind,
@@ -37,7 +38,7 @@ func newWorkItemCommand(opts *rootOptions, kind string, requireID bool) *cobra.C
 			if err := syncRemoteState(e); err != nil {
 				return err
 			}
-			branch := gitops.BranchName(e.Config, kind, id, desc)
+			branch := gitops.BranchName(e.Config, workKind, id, desc)
 			if err := e.CreateBranch(branch, e.TrunkRef); err != nil {
 				return err
 			}
@@ -46,14 +47,7 @@ func newWorkItemCommand(opts *rootOptions, kind string, requireID bool) *cobra.C
 				return err
 			}
 			key := v2state.ItemKey(kind, id, desc)
-			st.Items[key] = v2state.Item{
-				ID:        id,
-				Kind:      kind,
-				Desc:      desc,
-				Branch:    branch,
-				Status:    "started",
-				TouchedAt: git.NowRFC3339(),
-			}
+			st.Items[key] = v2state.NewItem(workKind, domain.Started{}, id, desc, branch, "")
 			if err := saveWorkflow(e, st, fmt.Sprintf("chore(tbd): start %s %s", kind, empty(id, desc))); err != nil {
 				return err
 			}

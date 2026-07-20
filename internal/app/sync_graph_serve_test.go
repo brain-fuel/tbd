@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"goforge.dev/tbd/v2/internal/v2/gitops"
@@ -85,7 +86,9 @@ func TestServeGraphAPI(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &graph); err != nil {
 		t.Fatal(err)
 	}
-	if graph.Root != dir {
+	graphRoot, _ := filepath.EvalSymlinks(graph.Root)
+	wantRoot, _ := filepath.EvalSymlinks(dir)
+	if graphRoot != wantRoot {
 		t.Fatalf("root=%q want %q", graph.Root, dir)
 	}
 	if graph.Config.TrunkName != "main" {
