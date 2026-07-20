@@ -49,7 +49,7 @@ gitc ls-remote --tags origin v1.2.3 | grep -q v1.2.3
 test -f RELEASE.json
 test -f RELEASE.md
 test -f .git/tbd-workflows/release-1.2.3.json
-grep -q '"Done": true' .git/tbd-workflows/release-1.2.3.json
+grep -q '"done": true' .git/tbd-workflows/release-1.2.3.json
 
 echo "== SemVer boundary =="
 if "$bin" release complete not-a-version >invalid.out 2>&1; then

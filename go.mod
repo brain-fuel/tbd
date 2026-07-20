@@ -4,7 +4,7 @@ go 1.26.0
 
 require gopkg.in/yaml.v3 v3.0.1
 
-require goforge.dev/goplus/std v0.24.0
+require goforge.dev/goplus/std v0.24.1
 
 require (
 	github.com/spf13/cobra v1.10.2
@@ -14,7 +14,7 @@ require (
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
-	goforge.dev/goplus v0.24.0 // indirect
+	goforge.dev/goplus v0.24.1 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/tools v0.48.0 // indirect

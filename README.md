@@ -6,7 +6,7 @@ Cobra flags only; the old colon argument syntax is intentionally gone.
 The core rule is still simple: deployable work must be rebased onto the current
 configured trunk before it moves through deploy or release refs.
 
-## v2.3.0 — Go+ Workflow Semantics
+## v2.3.2 — Go+ Workflow Semantics
 
 The semantic core is now authored in Go+. Closed enums define work kinds,
 group kinds, item states, release events, push policy, UAT state, and lease
