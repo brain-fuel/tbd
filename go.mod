@@ -4,7 +4,7 @@ go 1.26.0
 
 require gopkg.in/yaml.v3 v3.0.1
 
-require goforge.dev/goplus/std v0.24.1
+require goforge.dev/goplus/std v0.207.0
 
 require (
 	github.com/spf13/cobra v1.10.2
